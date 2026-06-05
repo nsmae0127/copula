@@ -455,6 +455,42 @@ export function createSupabaseRepository(): CopulaRepository {
     return mapCommunityMessage(message, profiles, groupBy(reactions, (reaction) => reaction.message_id));
   }
 
+  async function loadCommunityMessages(communityId: string): Promise<CommunityMessage[]> {
+    try {
+      const messages = await rows<CommunityMessageRow>(
+        (supabase.from("community_messages" as any) as any)
+          .select(messageSelect)
+          .eq("community_id", communityId)
+          .order("created_at", { ascending: true })
+          .limit(500)
+      );
+      if (!messages.length) {
+        return [];
+      }
+
+      const reactions = await rows<MessageReactionRow>(
+        (supabase.from("message_reactions" as any) as any)
+          .select(messageReactionSelect)
+          .eq("community_id", communityId)
+          .in("message_id", messages.map((message) => message.id))
+          .order("created_at", { ascending: true })
+      );
+      const profiles = await loadProfiles([
+        ...messages.map((message) => message.sender_user_id),
+        ...reactions.map((reaction) => reaction.user_id)
+      ]);
+      const reactionsByMessage = groupBy(reactions, (reaction) => reaction.message_id);
+
+      return messages.map((message) => mapCommunityMessage(message, profiles, reactionsByMessage));
+    } catch (error) {
+      if (isMissingMessageTables(error)) {
+        return [];
+      }
+
+      throw error;
+    }
+  }
+
   async function loadProfiles(userIds: string[]) {
     const uniqueIds = [...new Set(userIds)].filter(Boolean);
     const profileMap = new Map<string, ProfileRow>();
@@ -634,6 +670,8 @@ export function createSupabaseRepository(): CopulaRepository {
     },
 
     loadState,
+
+    loadCommunityMessages,
 
     async sendMessage(communityId, body) {
       const user = await requireUser();

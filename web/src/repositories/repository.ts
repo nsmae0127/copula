@@ -69,6 +69,7 @@ export interface CopulaRepository {
     commitment: Omit<Commitment, "id" | "createdAt" | "status" | "completedAt">
   ): Promise<Commitment>;
   sendMessage?(communityId: string, body: string): Promise<CommunityMessage>;
+  loadCommunityMessages?(communityId: string): Promise<CommunityMessage[]>;
   toggleMessageReaction?(communityId: string, messageId: string, emoji: string): Promise<CommunityMessage>;
   subscribeToCommunityMessages?(
     communityId: string,

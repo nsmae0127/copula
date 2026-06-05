@@ -107,11 +107,15 @@ function normalizeCommunity(community: Community): Community {
   };
 }
 
-function normalizeState(nextState: CopulaState): CopulaState {
+function normalizeState(nextState: CopulaState, preferredSelectedCommunityId?: string | null): CopulaState {
   const communities = nextState.communities.map(normalizeCommunity);
-  const selectedCommunityId = communities.some((community) => community.id === nextState.selectedCommunityId)
-    ? nextState.selectedCommunityId
-    : communities[0]?.id ?? null;
+  const preferredId = preferredSelectedCommunityId ?? null;
+  const selectedCommunityId =
+    preferredId && communities.some((community) => community.id === preferredId)
+      ? preferredId
+      : communities.some((community) => community.id === nextState.selectedCommunityId)
+        ? nextState.selectedCommunityId
+        : communities[0]?.id ?? null;
 
   return {
     ...nextState,
@@ -291,11 +295,35 @@ export function useCopulaStore() {
 
     let cancelled = false;
     const unsubscribe = repository.subscribeToCommunityMessages(selectedCommunity.id, () => {
+      if (repository.loadCommunityMessages) {
+        void repository
+          .loadCommunityMessages(selectedCommunity.id)
+          .then((messages) => {
+            if (!cancelled) {
+              setState((previous) =>
+                updateCommunity(previous, selectedCommunity.id, (community) => ({
+                  ...community,
+                  messages: mergeMessages(community.messages, messages)
+                }))
+              );
+              setLoadError(null);
+            }
+          })
+          .catch((error) => {
+            if (!cancelled) {
+              setLoadError(error instanceof Error ? error.message : "메시지를 불러오지 못했습니다.");
+            }
+          });
+        return;
+      }
+
       void repository
         .loadState()
         .then((nextState) => {
           if (!cancelled) {
-            setState(withCommitmentReminders(normalizeState(nextState)));
+            setState((previous) =>
+              withCommitmentReminders(normalizeState(nextState, previous.selectedCommunityId))
+            );
             setLoadError(null);
           }
         })
@@ -973,6 +1001,33 @@ export function useCopulaStore() {
     );
   }
 
+  async function refreshCommunityMessages(communityId: string, knownMessages: CommunityMessage[] = []) {
+    if (!repository.loadCommunityMessages) {
+      if (knownMessages.length) {
+        setState((previous) =>
+          updateCommunity(previous, communityId, (item) => ({
+            ...item,
+            messages: mergeMessages(item.messages, knownMessages)
+          }))
+        );
+      }
+      return;
+    }
+
+    try {
+      const messages = await repository.loadCommunityMessages(communityId);
+      setState((previous) =>
+        updateCommunity(previous, communityId, (item) => ({
+          ...item,
+          messages: mergeMessages(item.messages, knownMessages, messages)
+        }))
+      );
+      setLoadError(null);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "메시지를 불러오지 못했습니다.");
+    }
+  }
+
   async function sendMessage(communityId: string, rawBody: string) {
     const body = rawBody.trim();
     if (!body) {
@@ -1008,6 +1063,8 @@ export function useCopulaStore() {
         messages: upsertMessage(item.messages, createdMessage)
       }))
     );
+
+    await refreshCommunityMessages(communityId, [createdMessage]);
 
     const preview = body.length > 80 ? `${body.slice(0, 80)}...` : body;
     queueCommunityNotification(
@@ -1861,10 +1918,20 @@ export function useCopulaStore() {
 }
 
 function upsertMessage(messages: CommunityMessage[], nextMessage: CommunityMessage) {
-  return [
-    ...messages.filter((message) => message.id !== nextMessage.id),
-    nextMessage
-  ].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  return mergeMessages(messages, [nextMessage]);
+}
+
+function mergeMessages(...messageGroups: Array<CommunityMessage[]>) {
+  const byId = new Map<string, CommunityMessage>();
+  messageGroups.flat().forEach((message) => {
+    byId.set(message.id, {
+      ...byId.get(message.id),
+      ...message,
+      reactions: message.reactions ?? byId.get(message.id)?.reactions ?? []
+    });
+  });
+
+  return [...byId.values()].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 }
 
 function toggleLocalMessageReaction(message: CommunityMessage, userId: string, emoji: string): CommunityMessage {

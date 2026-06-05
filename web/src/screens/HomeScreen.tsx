@@ -9,7 +9,6 @@ import {
   Image,
   KeyRound,
   ListTodo,
-  MessageCircle,
   Megaphone,
   Plus,
   Flame,
@@ -38,7 +37,7 @@ interface HomeScreenProps {
 
 interface FeedItem {
   id: string;
-  type: "commitment" | "event" | "dday" | "album" | "message" | "notice";
+  type: "commitment" | "event" | "dday" | "album" | "notice";
   community: Community;
   title: string;
   dateLabel: string;
@@ -144,25 +143,7 @@ export function HomeScreen({
       });
     }),
 
-    // 5. 메시지
-    ...state.communities.flatMap((community) => {
-      const latestMessage = [...(community.messages || [])].sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )[0];
-      if (!latestMessage) return [];
-
-      return [{
-        id: `message-${community.id}-${latestMessage.id}`,
-        type: "message" as const,
-        community,
-        title: latestMessage.senderName,
-        dateLabel: formatRelativeDate(latestMessage.createdAt),
-        sortDate: new Date(latestMessage.createdAt),
-        data: latestMessage
-      }];
-    }),
-
-    // 6. 공지
+    // 5. 공지
     ...state.communities.flatMap((community) => {
       return [...community.notices]
         .sort((a, b) => Number(b.pinned) - Number(a.pinned) || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -463,12 +444,6 @@ function renderFeedCard(
       icon = <Image size={13} />;
       detailModule = "albums";
       break;
-    case "message":
-      badgeText = "메시지";
-      badgeClass = "badge-message";
-      icon = <MessageCircle size={13} />;
-      detailModule = "messages";
-      break;
     case "notice":
       badgeText = "공지";
       badgeClass = "badge-notice";
@@ -565,16 +540,6 @@ function renderFeedCard(
               ) : data.description ? (
                 <p className="album-memo">{data.description}</p>
               ) : null}
-            </div>
-          </div>
-        )}
-
-        {type === "message" && (
-          <div className="feed-content-message">
-            <div className="message-preview-avatar">{data.senderInitials}</div>
-            <div className="message-preview-copy">
-              <h3>{data.senderName}</h3>
-              <p>{data.body}</p>
             </div>
           </div>
         )}

@@ -1,6 +1,8 @@
 import { useState, type ReactNode } from "react";
 import {
+  Bell,
   CalendarDays,
+  Check,
   Clock,
   Flag,
   Handshake,
@@ -11,11 +13,12 @@ import {
   Megaphone,
   Plus,
   Flame,
-  Sparkles
+  Sparkles,
+  X
 } from "lucide-react";
-import type { Community, CommunityModule, CopulaState, VisibilityScope } from "../types";
+import type { Community, CommunityModule, CopulaNotification, CopulaState, VisibilityScope } from "../types";
 import { daysUntil, startOfToday, calculateUserStreak, getAlbumCoverItem, getLatestAlbumItem } from "../utils";
-import { EmptyState } from "../components/ui";
+import { EmptyState, NotificationRow } from "../components/ui";
 import { OneSecondPlayerOverlay } from "../components/OneSecondPlayerOverlay";
 
 interface HomeScreenProps {
@@ -23,6 +26,10 @@ interface HomeScreenProps {
   onJoin: () => void;
   onCreateCommunity: () => void;
   onSelectCommunity: (communityId: string) => void;
+  notifications: CopulaNotification[];
+  unreadNotificationCount: number;
+  onMarkNotificationsRead: () => void;
+  onOpenNotification: (notification: CopulaNotification) => void;
   onOpenCommunityModule: (communityId: string, module: CommunityModule) => void;
   onOpenAlbumCommunity: (communityId: string, albumId?: string) => void;
   onOpenOneSecondUpload?: () => void;
@@ -44,6 +51,10 @@ export function HomeScreen({
   onJoin,
   onCreateCommunity,
   onSelectCommunity,
+  notifications,
+  unreadNotificationCount,
+  onMarkNotificationsRead,
+  onOpenNotification,
   onOpenCommunityModule,
   onOpenAlbumCommunity,
   onOpenOneSecondUpload,
@@ -55,6 +66,8 @@ export function HomeScreen({
   const todayKey = toDateKey(new Date());
 
   const [activeStoryCommunity, setActiveStoryCommunity] = useState<Community | null>(null);
+  const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false);
+  const recentNotifications = notifications.slice(0, 20);
 
   // 몰입 모드 및 다이내믹 무드 조명 상태
   const [focusMode, setFocusMode] = useState(false);
@@ -183,13 +196,83 @@ export function HomeScreen({
       <section className="hero-panel hero-panel-compact">
         <div className="hero-glow-1" />
         <div className="hero-glow-2" />
-        <div className="page-head">
-          <h1>반가워요, {state.currentUser?.name ?? "멤버"}님!</h1>
-          <p className="muted">
-            소중한 관계(copula)들의 소식을 피드에서 한눈에 확인하고 넘겨보세요.
-          </p>
+        <div className="home-hero-row">
+          <div className="page-head">
+            <h1>반가워요, {state.currentUser?.name ?? "멤버"}님!</h1>
+            <p className="muted">
+              소중한 관계(copula)들의 소식을 피드에서 한눈에 확인하고 넘겨보세요.
+            </p>
+          </div>
+          <button
+            className="home-notification-button"
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              setIsNotificationPanelOpen(true);
+            }}
+            aria-label={`알림 ${unreadNotificationCount}개`}
+            title="알림"
+          >
+            <Bell aria-hidden="true" />
+            {unreadNotificationCount > 0 ? (
+              <span className="home-notification-badge">
+                {unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}
+              </span>
+            ) : null}
+          </button>
         </div>
       </section>
+
+      {isNotificationPanelOpen ? (
+        <>
+          <div className="home-notification-backdrop" onClick={() => setIsNotificationPanelOpen(false)} />
+          <section className="home-notification-sheet" role="dialog" aria-modal="true" aria-label="알림 내역">
+            <div className="home-notification-head">
+              <div>
+                <h2>알림</h2>
+                <span>{unreadNotificationCount > 0 ? `읽지 않음 ${unreadNotificationCount}개` : "모두 확인했습니다"}</span>
+              </div>
+              <div className="home-notification-actions">
+                <button
+                  className="icon-button compact"
+                  type="button"
+                  onClick={onMarkNotificationsRead}
+                  disabled={notifications.every((item) => item.read)}
+                  aria-label="모두 읽음"
+                  title="모두 읽음"
+                >
+                  <Check aria-hidden="true" />
+                </button>
+                <button
+                  className="icon-button compact"
+                  type="button"
+                  onClick={() => setIsNotificationPanelOpen(false)}
+                  aria-label="알림 닫기"
+                  title="닫기"
+                >
+                  <X aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+            <div className="home-notification-list">
+              {recentNotifications.length ? (
+                recentNotifications.map((item) => (
+                  <NotificationRow
+                    key={item.id}
+                    item={item}
+                    onClick={() => {
+                      onOpenNotification(item);
+                      setIsNotificationPanelOpen(false);
+                    }}
+                  />
+                ))
+              ) : (
+                <EmptyState icon={Bell} title="알림이 없습니다" body="새로운 소식이 생기면 이곳에 표시됩니다." />
+              )}
+            </div>
+          </section>
+        </>
+      ) : null}
 
       {!hasCommunities ? (
         <section className="onboarding-panel card">

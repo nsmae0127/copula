@@ -216,7 +216,7 @@ function queueCommunityNotification(
   const task = repository.notifyCommunityMembers?.(communityId, kind, title, body, {
     excludeCurrentUser: true,
     url: kind === "message"
-      ? `/?view=community&community=${encodeURIComponent(communityId)}&module=messages`
+      ? `/?view=messages&community=${encodeURIComponent(communityId)}`
       : `/?view=community&community=${encodeURIComponent(communityId)}&module=${encodeURIComponent(kindToModule(kind))}`,
     tag
   });

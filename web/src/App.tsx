@@ -15,6 +15,9 @@ const CommunityScreen = lazy(() =>
   import("./screens/CommunityScreen").then((module) => ({ default: module.CommunityScreen }))
 );
 const HomeScreen = lazy(() => import("./screens/HomeScreen").then((module) => ({ default: module.HomeScreen })));
+const MessagesScreen = lazy(() =>
+  import("./screens/MessagesScreen").then((module) => ({ default: module.MessagesScreen }))
+);
 const NotificationsScreen = lazy(() =>
   import("./screens/NotificationsScreen").then((module) => ({ default: module.NotificationsScreen }))
 );
@@ -31,7 +34,7 @@ const AUTH_TYPE_PARAM = "type";
 const ROUTE_VIEW_PARAM = "view";
 const ROUTE_COMMUNITY_PARAM = "community";
 const ROUTE_MODULE_PARAM = "module";
-const validModules = ["feed", "messages", "calendar", "commitments", "relationships", "albums", "members", "1s"] as const;
+const validModules = ["feed", "calendar", "commitments", "relationships", "albums", "members", "1s"] as const;
 type AuthReturnIntent = "recovery" | null;
 
 interface RouteIntent {
@@ -78,6 +81,10 @@ export function App() {
     if (routeModule) return routeModule;
     const saved = localStorage.getItem(MODULE_KEY);
     return isCommunityModule(saved) ? saved : "feed";
+  });
+  const [selectedMessageCommunityId, setSelectedMessageCommunityId] = useState<string | null>(() => {
+    const intent = readInitialRouteIntent();
+    return intent?.view === "messages" ? intent.communityId ?? null : null;
   });
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null);
   const [modal, setModal] = useState<ModalState | null>(null);
@@ -161,6 +168,17 @@ export function App() {
       return;
     }
 
+    if (intent.view === "messages") {
+      if (!status.isHydrated) return;
+      const targetCommunity = intent.communityId
+        ? state.communities.find((community) => community.id === intent.communityId)
+        : null;
+
+      hasHandledRouteIntent.current = true;
+      openMessages(targetCommunity?.id ?? null);
+      return;
+    }
+
     hasHandledRouteIntent.current = true;
     setActiveView(intent.view);
     if (intent.module) setActiveModule(intent.module);
@@ -209,6 +227,7 @@ export function App() {
     setActiveView("home");
     setActiveModule("feed");
     setSelectedAlbumId(null);
+    setSelectedMessageCommunityId(null);
     setViewerTarget(null);
   }
 
@@ -237,12 +256,24 @@ export function App() {
 
   function openCommunity(communityId: string, module: CommunityModule = "feed", albumId?: string) {
     actions.selectCommunity(communityId);
+    if (module === "messages") {
+      openMessages(communityId);
+      return;
+    }
     setActiveView("community");
     setActiveModule(module);
     setSelectedAlbumId(module === "albums" ? albumId ?? null : null);
-    if (module === "messages") {
+    setSelectedMessageCommunityId(null);
+  }
+
+  function openMessages(communityId?: string | null) {
+    if (communityId) {
+      actions.selectCommunity(communityId);
       markUnreadMessagesForCommunity(communityId);
     }
+    setActiveView("messages");
+    setSelectedMessageCommunityId(communityId ?? null);
+    setSelectedAlbumId(null);
   }
 
   function markUnreadMessagesForCommunity(communityId: string) {
@@ -254,6 +285,11 @@ export function App() {
   function openNotification(item: CopulaNotification) {
     actions.markNotificationRead(item.id);
     if (!item.communityId || !state.communities.some((community) => community.id === item.communityId)) {
+      return;
+    }
+
+    if (item.kind === "message") {
+      openMessages(item.communityId);
       return;
     }
 
@@ -284,8 +320,7 @@ export function App() {
   }
 
   function openQuickMessage() {
-    if (!selectedCommunity) return;
-    openCommunity(selectedCommunity.id, "messages");
+    openMessages(selectedCommunity?.id ?? null);
   }
 
   function openQuickVlog() {
@@ -476,6 +511,7 @@ export function App() {
           setActiveView("home");
           setActiveModule("feed");
           setSelectedAlbumId(null);
+          setSelectedMessageCommunityId(null);
           setViewerTarget(null);
         }
         setPendingConfirmation(null);
@@ -509,6 +545,7 @@ export function App() {
         setActiveView("home");
         setActiveModule("feed");
         setSelectedAlbumId(null);
+        setSelectedMessageCommunityId(null);
         setViewerTarget(null);
         setPendingConfirmation(null);
       }
@@ -522,16 +559,13 @@ export function App() {
           communities={state.communities}
           community={selectedCommunity}
           currentUserId={state.currentUser?.id ?? ""}
-          messageUnreadCount={selectedCommunity ? unreadMessageCountForCommunity(state.notifications, selectedCommunity.id) : 0}
           activeModule={activeModule}
           selectedAlbumId={selectedAlbumId}
           onSelectCommunity={(communityId) => startViewTransition(() => openCommunity(communityId, activeModule))}
           onModuleChange={(module) => startViewTransition(() => {
             setActiveModule(module);
-            if (module === "messages" && selectedCommunity) {
-              markUnreadMessagesForCommunity(selectedCommunity.id);
-            }
           })}
+          onOpenMessages={(communityId) => startViewTransition(() => openMessages(communityId))}
           onSelectAlbum={setSelectedAlbumId}
           onOpenJoin={() => openJoinModal()}
           onOpenCreateCommunity={() => setModal({ type: "community" })}
@@ -579,14 +613,6 @@ export function App() {
             await actions.addCommitment(selectedCommunity.id, input);
             showToast("약속을 등록했습니다.");
           }}
-          onSendMessage={async (body) => {
-            if (!selectedCommunity) return;
-            await actions.sendMessage(selectedCommunity.id, body);
-          }}
-          onToggleMessageReaction={async (messageId, emoji) => {
-            if (!selectedCommunity) return;
-            await actions.toggleMessageReaction(selectedCommunity.id, messageId, emoji);
-          }}
           onToggleCommitment={async (commitmentId) => {
             if (!selectedCommunity) return;
             await actions.toggleCommitment(selectedCommunity.id, commitmentId);
@@ -633,6 +659,27 @@ export function App() {
       );
     }
 
+    if (activeView === "messages") {
+      return (
+        <MessagesScreen
+          communities={state.communities}
+          currentUserId={state.currentUser?.id ?? ""}
+          selectedCommunityId={selectedMessageCommunityId}
+          notifications={state.notifications}
+          onSelectConversation={(communityId) => {
+            markUnreadMessagesForCommunity(communityId);
+            setSelectedMessageCommunityId(communityId);
+            actions.selectCommunity(communityId);
+          }}
+          onBackToList={() => setSelectedMessageCommunityId(null)}
+          onSendMessage={async (communityId, body) => {
+            await actions.sendMessage(communityId, body);
+          }}
+          onToggleMessageReaction={actions.toggleMessageReaction}
+        />
+      );
+    }
+
     if (activeView === "notifications") {
       return (
         <NotificationsScreen
@@ -663,10 +710,7 @@ export function App() {
               .resetDemo()
               .then(() => {
                 startViewTransition(() => {
-                  setActiveView("home");
-                  setActiveModule("feed");
-                  setSelectedAlbumId(null);
-                  setViewerTarget(null);
+                  resetNavigationToHome();
                 });
               })
               .catch((error) => setActionError(errorMessage(error)));
@@ -677,10 +721,7 @@ export function App() {
               .signOut()
               .then(() => {
                 startViewTransition(() => {
-                  setActiveView("home");
-                  setActiveModule("feed");
-                  setSelectedAlbumId(null);
-                  setViewerTarget(null);
+                  resetNavigationToHome();
                 });
               })
               .catch((error) => setActionError(errorMessage(error)));
@@ -695,7 +736,17 @@ export function App() {
         onJoin={() => openJoinModal()}
         onCreateCommunity={() => setModal({ type: "community" })}
         onSelectCommunity={(communityId) => startViewTransition(() => openCommunity(communityId))}
-        onOpenCommunityModule={(communityId, module) => startViewTransition(() => openCommunity(communityId, module))}
+        notifications={state.notifications}
+        unreadNotificationCount={state.notifications.filter((item) => !item.read).length}
+        onMarkNotificationsRead={actions.markNotificationsRead}
+        onOpenNotification={openNotification}
+        onOpenCommunityModule={(communityId, module) => startViewTransition(() => {
+          if (module === "messages") {
+            openMessages(communityId);
+            return;
+          }
+          openCommunity(communityId, module);
+        })}
         onOpenAlbumCommunity={(communityId, albumId) => startViewTransition(() => openCommunity(communityId, "albums", albumId))}
         onOpenOneSecondUpload={() => setModal({ type: "1sUpload" })}
         onDeleteOneSecondLog={requestDeleteOneSecondLog}
@@ -708,8 +759,13 @@ export function App() {
       <Layout
         activeView={activeView}
         selectedCommunity={selectedCommunity}
-        unreadNotificationCount={state.notifications.filter((item) => !item.read).length}
-        onViewChange={(view) => startViewTransition(() => setActiveView(view))}
+        unreadMessageCount={state.notifications.filter((item) => item.kind === "message" && !item.read).length}
+        onViewChange={(view) => startViewTransition(() => {
+          setActiveView(view);
+          if (view === "messages") {
+            setSelectedMessageCommunityId(null);
+          }
+        })}
         onOpenJoin={() => openJoinModal()}
         onOpenCreateCommunity={() => setModal({ type: "community" })}
         onOpenQuickNotice={openQuickNotice}
@@ -941,11 +997,11 @@ function readInitialRouteIntent(): RouteIntent | null {
 }
 
 function isViewName(value: string | null): value is ViewName {
-  return value === "home" || value === "community" || value === "notifications" || value === "profile";
+  return value === "home" || value === "community" || value === "messages" || value === "notifications" || value === "profile";
 }
 
 function isCommunityModule(value: string | null): value is CommunityModule {
-  return validModules.includes(value as CommunityModule);
+  return validModules.includes(value as (typeof validModules)[number]);
 }
 
 function readAuthReturnIntentFromUrl(): AuthReturnIntent {

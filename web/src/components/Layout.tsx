@@ -1,6 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
 import {
-  Bell,
   CalendarDays,
   Home,
   Image,
@@ -21,7 +20,7 @@ import { playTapSound } from "../utils/soundEffects";
 interface LayoutProps {
   activeView: ViewName;
   selectedCommunity: Community | null;
-  unreadNotificationCount: number;
+  unreadMessageCount: number;
   children: ReactNode;
   onViewChange: (view: ViewName) => void;
   onOpenJoin: () => void;
@@ -36,7 +35,7 @@ interface LayoutProps {
 export function Layout({
   activeView,
   selectedCommunity,
-  unreadNotificationCount,
+  unreadMessageCount,
   children,
   onViewChange,
   onOpenJoin,
@@ -73,7 +72,9 @@ export function Layout({
 
   const subtitle = activeView === "community" && selectedCommunity
     ? selectedCommunity.name
-    : "";
+    : activeView === "messages"
+      ? "메시지"
+      : "";
 
   return (
     <div className="app-shell">
@@ -231,25 +232,25 @@ export function Layout({
           ) : null}
         </div>
 
-        {/* 알림 */}
+        {/* 메시지 */}
         <button
-          className={`nav-item ${activeView === "notifications" ? "is-active" : ""}`}
+          className={`nav-item ${activeView === "messages" ? "is-active" : ""}`}
           onClick={() => {
             playTapSound();
             setIsPlusMenuOpen(false);
-            onViewChange("notifications");
+            onViewChange("messages");
           }}
-          aria-current={activeView === "notifications" ? "page" : undefined}
+          aria-current={activeView === "messages" ? "page" : undefined}
         >
           <span className="nav-icon-wrap">
-            <Bell aria-hidden="true" />
-            {unreadNotificationCount > 0 ? (
-              <span className="nav-badge" aria-label={`${unreadNotificationCount}개 읽지 않은 알림`}>
-                {unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}
+            <MessageCircle aria-hidden="true" />
+            {unreadMessageCount > 0 ? (
+              <span className="nav-badge" aria-label={`${unreadMessageCount}개 읽지 않은 메시지`}>
+                {unreadMessageCount > 9 ? "9+" : unreadMessageCount}
               </span>
             ) : null}
           </span>
-          <span>알림</span>
+          <span>메시지</span>
         </button>
 
         {/* 계정 */}

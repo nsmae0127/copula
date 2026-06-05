@@ -48,11 +48,11 @@ interface CommunityScreenProps {
   communities: Community[];
   community: Community | null;
   currentUserId: string;
-  messageUnreadCount: number;
   activeModule: CommunityModule;
   selectedAlbumId: string | null;
   onSelectCommunity: (communityId: string) => void;
   onModuleChange: (module: CommunityModule) => void;
+  onOpenMessages: (communityId: string) => void;
   onSelectAlbum: (albumId: string) => void;
   onOpenJoin: () => void;
   onOpenCreateCommunity: () => void;
@@ -85,8 +85,6 @@ interface CommunityScreenProps {
     assigneeIds: string[];
     visibility: VisibilityScope;
   }) => Promise<void> | void;
-  onSendMessage: (body: string) => Promise<void> | void;
-  onToggleMessageReaction: (messageId: string, emoji: string) => Promise<void> | void;
   onToggleCommitment: (commitmentId: string) => Promise<void> | void;
   onDeleteCommitment: (commitmentId: string) => Promise<void> | void;
   onRegenerateInviteCode: () => void;
@@ -100,11 +98,11 @@ export function CommunityScreen({
   communities,
   community: rawCommunity,
   currentUserId,
-  messageUnreadCount,
   activeModule,
   selectedAlbumId,
   onSelectCommunity,
   onModuleChange,
+  onOpenMessages,
   onSelectAlbum,
   onOpenJoin,
   onOpenCreateCommunity,
@@ -131,8 +129,6 @@ export function CommunityScreen({
   onAddPair,
   onAddCircle,
   onAddCommitment,
-  onSendMessage,
-  onToggleMessageReaction,
   onToggleCommitment,
   onDeleteCommitment,
   onRegenerateInviteCode,
@@ -190,13 +186,6 @@ export function CommunityScreen({
 
       <section className="module-tabs" aria-label="copula 모듈">
         <ModuleTab active={activeModule === "feed"} icon={Megaphone} label="피드" onClick={() => onModuleChange("feed")} />
-        <ModuleTab
-          active={activeModule === "messages"}
-          icon={MessageCircle}
-          label="메시지"
-          badge={messageUnreadCount}
-          onClick={() => onModuleChange("messages")}
-        />
         <ModuleTab active={activeModule === "1s"} icon={Video} label="1s Vlog" onClick={() => onModuleChange("1s")} />
         <ModuleTab active={activeModule === "calendar"} icon={CalendarDays} label="일정" onClick={() => onModuleChange("calendar")} />
         <ModuleTab active={activeModule === "commitments"} icon={ListTodo} label="할 일" onClick={() => onModuleChange("commitments")} />
@@ -209,15 +198,7 @@ export function CommunityScreen({
         <FeedModule
           community={community}
           onModuleChange={onModuleChange}
-        />
-      ) : null}
-      {activeModule === "messages" ? (
-        <MessagesModule
-          community={community}
-          currentUserId={currentUserId}
-          unreadCount={messageUnreadCount}
-          onSendMessage={onSendMessage}
-          onToggleMessageReaction={onToggleMessageReaction}
+          onOpenMessages={onOpenMessages}
         />
       ) : null}
       {activeModule === "calendar" ? (
@@ -588,10 +569,12 @@ interface CopulaContentItem {
 
 function FeedModule({
   community,
-  onModuleChange
+  onModuleChange,
+  onOpenMessages
 }: {
   community: Community;
   onModuleChange: (module: CommunityModule) => void;
+  onOpenMessages: (communityId: string) => void;
 }) {
   const [activeFilter, setActiveFilter] = useState<CopulaContentFilter>("all");
   const contentItems = buildCopulaContentItems(community);
@@ -643,7 +626,7 @@ function FeedModule({
           <span>1s</span>
           <strong>{todaysVlogCount}</strong>
         </button>
-        <button type="button" onClick={() => onModuleChange("messages")}>
+        <button type="button" onClick={() => onOpenMessages(community.id)}>
           <MessageCircle aria-hidden="true" />
           <span>톡</span>
           <strong>{recentMessageCount}</strong>
@@ -679,7 +662,7 @@ function FeedModule({
                 key={item.id}
                 type="button"
                 className={`copula-content-item content-${item.filter}`}
-                onClick={() => onModuleChange(item.module)}
+                onClick={() => item.module === "messages" ? onOpenMessages(community.id) : onModuleChange(item.module)}
               >
                 <span className="copula-content-icon">
                   <item.icon aria-hidden="true" />

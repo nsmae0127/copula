@@ -565,7 +565,6 @@ export function App() {
           onModuleChange={(module) => startViewTransition(() => {
             setActiveModule(module);
           })}
-          onOpenMessages={(communityId) => startViewTransition(() => openMessages(communityId))}
           onSelectAlbum={setSelectedAlbumId}
           onOpenJoin={() => openJoinModal()}
           onOpenCreateCommunity={() => setModal({ type: "community" })}

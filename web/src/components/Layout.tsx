@@ -245,9 +245,7 @@ export function Layout({
           <span className="nav-icon-wrap">
             <MessageCircle aria-hidden="true" />
             {unreadMessageCount > 0 ? (
-              <span className="nav-badge" aria-label={`${unreadMessageCount}개 읽지 않은 메시지`}>
-                {unreadMessageCount > 9 ? "9+" : unreadMessageCount}
-              </span>
+              <span className="nav-red-dot" aria-label={`${unreadMessageCount}개 읽지 않은 메시지`} />
             ) : null}
           </span>
           <span>메시지</span>

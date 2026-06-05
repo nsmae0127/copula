@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type PointerEvent } from "react";
+import { useMemo, useState, type CSSProperties, type FormEvent, type PointerEvent } from "react";
 import {
   CalendarDays,
   CheckCircle2,
@@ -10,17 +10,14 @@ import {
   Handshake,
   Image,
   ListTodo,
-  MessageCircle,
   type LucideIcon,
   Megaphone,
   Network,
   Pencil,
   Plus,
   RefreshCw,
-  Send,
   Settings,
   Share2,
-  SmilePlus,
   Trash2,
   UserMinus,
   UserRound,
@@ -52,7 +49,6 @@ interface CommunityScreenProps {
   selectedAlbumId: string | null;
   onSelectCommunity: (communityId: string) => void;
   onModuleChange: (module: CommunityModule) => void;
-  onOpenMessages: (communityId: string) => void;
   onSelectAlbum: (albumId: string) => void;
   onOpenJoin: () => void;
   onOpenCreateCommunity: () => void;
@@ -102,7 +98,6 @@ export function CommunityScreen({
   selectedAlbumId,
   onSelectCommunity,
   onModuleChange,
-  onOpenMessages,
   onSelectAlbum,
   onOpenJoin,
   onOpenCreateCommunity,
@@ -198,7 +193,6 @@ export function CommunityScreen({
         <FeedModule
           community={community}
           onModuleChange={onModuleChange}
-          onOpenMessages={onOpenMessages}
         />
       ) : null}
       {activeModule === "calendar" ? (
@@ -550,7 +544,7 @@ function CommunityNoticePanel({
   );
 }
 
-type CopulaContentFilter = "all" | "message" | "notice" | "schedule" | "commitment" | "album" | "vlog";
+type CopulaContentFilter = "all" | "notice" | "schedule" | "commitment" | "album" | "vlog";
 
 interface CopulaContentItem {
   id: string;
@@ -569,12 +563,10 @@ interface CopulaContentItem {
 
 function FeedModule({
   community,
-  onModuleChange,
-  onOpenMessages
+  onModuleChange
 }: {
   community: Community;
   onModuleChange: (module: CommunityModule) => void;
-  onOpenMessages: (communityId: string) => void;
 }) {
   const [activeFilter, setActiveFilter] = useState<CopulaContentFilter>("all");
   const contentItems = buildCopulaContentItems(community);
@@ -589,13 +581,8 @@ function FeedModule({
     return Date.now() - time <= 1000 * 60 * 60 * 24 * 14;
   }).length;
   const todaysVlogCount = (community.oneSecondLogs || []).filter((log) => isSameDate(log.createdAt, new Date())).length;
-  const recentMessageCount = (community.messages || []).filter((message) => {
-    const time = new Date(message.createdAt).getTime();
-    return Date.now() - time <= 1000 * 60 * 60 * 24 * 7;
-  }).length;
   const filters: Array<{ id: CopulaContentFilter; label: string; count: number }> = [
     { id: "all", label: "전체", count: contentItems.length },
-    { id: "message", label: "메시지", count: contentItems.filter((item) => item.filter === "message").length },
     { id: "notice", label: "공지", count: contentItems.filter((item) => item.filter === "notice").length },
     { id: "schedule", label: "일정", count: contentItems.filter((item) => item.filter === "schedule").length },
     { id: "commitment", label: "할 일", count: contentItems.filter((item) => item.filter === "commitment").length },
@@ -625,11 +612,6 @@ function FeedModule({
           <Video aria-hidden="true" />
           <span>1s</span>
           <strong>{todaysVlogCount}</strong>
-        </button>
-        <button type="button" onClick={() => onOpenMessages(community.id)}>
-          <MessageCircle aria-hidden="true" />
-          <span>톡</span>
-          <strong>{recentMessageCount}</strong>
         </button>
       </section>
 
@@ -662,7 +644,7 @@ function FeedModule({
                 key={item.id}
                 type="button"
                 className={`copula-content-item content-${item.filter}`}
-                onClick={() => item.module === "messages" ? onOpenMessages(community.id) : onModuleChange(item.module)}
+                onClick={() => onModuleChange(item.module)}
               >
                 <span className="copula-content-icon">
                   <item.icon aria-hidden="true" />
@@ -694,193 +676,7 @@ function FeedModule({
   );
 }
 
-const MESSAGE_REACTION_OPTIONS = ["❤️", "👍", "😂", "🎉"];
-
-function MessagesModule({
-  community,
-  currentUserId,
-  unreadCount,
-  onSendMessage,
-  onToggleMessageReaction
-}: {
-  community: Community;
-  currentUserId: string;
-  unreadCount: number;
-  onSendMessage: (body: string) => Promise<void> | void;
-  onToggleMessageReaction: (messageId: string, emoji: string) => Promise<void> | void;
-}) {
-  const [draft, setDraft] = useState("");
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [reactionTargetId, setReactionTargetId] = useState<string | null>(null);
-  const listRef = useRef<HTMLDivElement>(null);
-  const messages = [...community.messages].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-
-  useEffect(() => {
-    if (listRef.current) {
-      listRef.current.scrollTop = listRef.current.scrollHeight;
-    }
-  }, [community.id, messages.length]);
-
-  async function submitMessage(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const body = draft.trim();
-    if (!body || pending) return;
-
-    setPending(true);
-    setError(null);
-    try {
-      await onSendMessage(body);
-      setDraft("");
-      setReactionTargetId(null);
-    } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "메시지를 보내지 못했습니다.");
-    } finally {
-      setPending(false);
-    }
-  }
-
-  async function toggleReaction(messageId: string, emoji: string) {
-    setError(null);
-    try {
-      await onToggleMessageReaction(messageId, emoji);
-      setReactionTargetId(null);
-    } catch (reactionError) {
-      setError(reactionError instanceof Error ? reactionError.message : "반응을 저장하지 못했습니다.");
-    }
-  }
-
-  return (
-    <section className="messages-module" aria-label={`${community.name} 메시지`}>
-      <div className="messages-head">
-        <div>
-          <h2>메시지</h2>
-          <span>
-            {community.members.length}명이 함께 보는 copula 채팅
-            {unreadCount > 0 ? ` · 읽지 않음 ${unreadCount}` : ""}
-          </span>
-        </div>
-        <span className="messages-count-pill">{messages.length}</span>
-      </div>
-
-      <div className="messages-list" ref={listRef}>
-        {messages.length ? (
-          messages.map((message) => {
-            const mine = message.senderUserId === currentUserId;
-            const groupedReactions = groupMessageReactions(message.reactions, currentUserId);
-
-            return (
-              <article key={message.id} className={`message-row ${mine ? "is-mine" : "is-other"}`}>
-                {!mine ? <span className="message-avatar">{message.senderInitials}</span> : null}
-                <div className="message-cluster">
-                  {!mine ? <span className="message-sender">{message.senderName}</span> : null}
-                  <button
-                    type="button"
-                    className="message-bubble"
-                    onClick={() => setReactionTargetId((current) => current === message.id ? null : message.id)}
-                    aria-label={`${message.senderName} 메시지에 반응 추가`}
-                  >
-                    {message.body}
-                  </button>
-                  <div className="message-meta">
-                    <span>{formatDateTime(message.createdAt)}</span>
-                    <button
-                      type="button"
-                      onClick={() => setReactionTargetId((current) => current === message.id ? null : message.id)}
-                    >
-                      <SmilePlus aria-hidden="true" />
-                      반응
-                    </button>
-                  </div>
-
-                  {groupedReactions.length ? (
-                    <div className="message-reactions" aria-label="메시지 반응">
-                      {groupedReactions.map((reaction) => (
-                        <button
-                          key={reaction.emoji}
-                          type="button"
-                          className={reaction.mine ? "is-mine" : ""}
-                          onClick={() => toggleReaction(message.id, reaction.emoji)}
-                          aria-pressed={reaction.mine}
-                        >
-                          <span>{reaction.emoji}</span>
-                          <strong>{reaction.count}</strong>
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
-
-                  {reactionTargetId === message.id ? (
-                    <div className="message-reaction-picker" role="group" aria-label="반응 선택">
-                      {MESSAGE_REACTION_OPTIONS.map((emoji) => (
-                        <button key={emoji} type="button" onClick={() => toggleReaction(message.id, emoji)}>
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              </article>
-            );
-          })
-        ) : (
-          <EmptyState icon={MessageCircle} title="아직 메시지가 없습니다" body="copula 멤버들과 첫 메시지를 나눠보세요." />
-        )}
-      </div>
-
-      <form className="message-composer" onSubmit={submitMessage}>
-        <textarea
-          value={draft}
-          rows={1}
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey) {
-              event.preventDefault();
-              event.currentTarget.form?.requestSubmit();
-            }
-          }}
-          maxLength={2000}
-          placeholder="메시지를 입력하세요"
-          aria-label="메시지 입력"
-        />
-        <button className="primary-button" type="submit" disabled={!draft.trim() || pending}>
-          <Send aria-hidden="true" />
-          {pending ? "전송 중" : "전송"}
-        </button>
-        {error ? <p className="form-error">{error}</p> : null}
-      </form>
-    </section>
-  );
-}
-
-function groupMessageReactions(reactions: Community["messages"][number]["reactions"], currentUserId: string) {
-  return MESSAGE_REACTION_OPTIONS.map((emoji) => {
-    const matches = reactions.filter((reaction) => reaction.emoji === emoji);
-    return {
-      emoji,
-      count: matches.length,
-      mine: matches.some((reaction) => reaction.userId === currentUserId)
-    };
-  }).filter((reaction) => reaction.count > 0);
-}
-
 function buildCopulaContentItems(community: Community): CopulaContentItem[] {
-  const messageItems: CopulaContentItem[] = [...(community.messages || [])]
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 8)
-    .map((message) => ({
-      id: `message-${message.id}`,
-      filter: "message",
-      module: "messages",
-      icon: MessageCircle,
-      eyebrow: "메시지",
-      title: message.senderName,
-      meta: formatContentDateTime(message.createdAt),
-      body: message.body,
-      at: message.createdAt,
-      priority: isSameDate(message.createdAt, new Date()) ? 2 : 28
-    }));
-
   const noticeItems: CopulaContentItem[] = [...community.notices]
     .sort((a, b) => Number(b.pinned) - Number(a.pinned) || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .map((notice) => ({
@@ -978,7 +774,7 @@ function buildCopulaContentItems(community: Community): CopulaContentItem[] {
     mediaKind: "video"
   }));
 
-  return [...noticeItems, ...messageItems, ...eventItems, ...ddayItems, ...commitmentItems, ...albumItems, ...vlogItems].sort((a, b) => {
+  return [...noticeItems, ...eventItems, ...ddayItems, ...commitmentItems, ...albumItems, ...vlogItems].sort((a, b) => {
     if (a.priority !== b.priority) {
       return a.priority - b.priority;
     }

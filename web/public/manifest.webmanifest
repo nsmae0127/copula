@@ -1,0 +1,24 @@
+{
+  "name": "Copula",
+  "short_name": "Copula",
+  "description": "초대받은 사람들과 일정, 앨범, 공지, 관계 약속을 함께 관리하는 프라이빗 copula.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fbf7f8",
+  "theme_color": "#8c74ba",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/assets/logo-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/logo-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

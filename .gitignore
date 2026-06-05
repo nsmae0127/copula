@@ -1,0 +1,17 @@
+.DS_Store
+node_modules/
+dist/
+.vite/
+.next/
+.vercel/
+.supabase/
+supabase/.temp/
+web/screenshots/
+docs/
+.env
+.env.*
+!.env.example
+!.env.production.example
+*.local
+*.log
+*.tsbuildinfo

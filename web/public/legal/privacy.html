@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>개인정보 처리방침 | Copula</title>
+    <style>
+      :root { color-scheme: light; --bg: #fbf7f8; --ink: #242026; --muted: #766d78; --line: #eee3e8; --primary: #8c74ba; --coral: #f0717a; }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: linear-gradient(180deg, #fff, #fff7f8 320px, var(--bg)); color: var(--ink); font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.65; }
+      main { width: min(860px, 100%); margin: 0 auto; padding: 28px 18px 64px; }
+      header { display: grid; gap: 10px; padding: 22px 0; border-bottom: 1px solid var(--line); }
+      h1 { margin: 0; font-size: clamp(1.8rem, 6vw, 2.6rem); line-height: 1.1; }
+      h2 { margin: 34px 0 10px; font-size: 1.2rem; }
+      p, li { color: var(--muted); }
+      a { color: var(--primary); font-weight: 800; }
+      .brand { display: flex; gap: 10px; align-items: center; color: var(--primary); font-weight: 850; }
+      .brand img { width: 34px; height: auto; border-radius: 8px; }
+      .notice { padding: 12px 14px; border: 1px solid rgba(140, 116, 186, 0.18); border-radius: 8px; background: rgba(140, 116, 186, 0.1); color: #5d4b8e; font-weight: 760; }
+      table { width: 100%; border-collapse: collapse; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+      th, td { padding: 11px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+      th { color: var(--ink); background: #fff7f8; }
+      footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.92rem; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <a class="brand" href="/">
+          <img src="/assets/logo-mark-96.png" alt="" />
+          Copula
+        </a>
+        <h1>개인정보 처리방침</h1>
+        <p>시행일: 2026년 5월 15일</p>
+      </header>
+
+      <p class="notice">이 문서는 Copula 서비스 운영 기준 초안입니다. 출시 전 실제 운영자명, 문의 이메일, 사업자 정보, 위탁·국외이전 여부를 최종 확인해 주세요.</p>
+
+      <h2>1. 수집하는 개인정보</h2>
+      <table>
+        <thead>
+          <tr><th>구분</th><th>항목</th><th>목적</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>계정</td><td>이메일, 이름, 사용자 아이디</td><td>회원 식별, 로그인, 커뮤니티 참여 관리</td></tr>
+          <tr><td>커뮤니티</td><td>커뮤니티명, 설명, 멤버 역할, 초대 코드, 일정, 공지, D-Day, 앨범 제목, 사진·메모, 관계 및 약속 정보</td><td>프라이빗 커뮤니티 기능 제공</td></tr>
+          <tr><td>알림</td><td>알림 수신 상태, 푸시 구독 정보</td><td>공지, 일정, 약속 관련 알림 제공</td></tr>
+          <tr><td>기기·이용 정보</td><td>접속 환경, 브라우저 정보, 오류 및 보안 이벤트</td><td>서비스 안정성, 보안, 장애 대응</td></tr>
+        </tbody>
+      </table>
+
+      <h2>2. 개인정보 이용 목적</h2>
+      <ul>
+        <li>초대 기반 커뮤니티 생성, 참여, 멤버 권한 관리</li>
+        <li>일정, 공지, 앨범, D-Day, 관계 약속 기능 제공</li>
+        <li>비밀번호 재설정, 계정 관리, 고객 문의 대응</li>
+        <li>서비스 보안, 오류 분석, 부정 이용 방지</li>
+        <li>이용자가 동의한 경우 푸시 알림 발송</li>
+      </ul>
+
+      <h2>3. 보관 기간</h2>
+      <p>회원 탈퇴 또는 커뮤니티 삭제 시 관련 개인정보는 지체 없이 삭제합니다. 다만 법령상 보관 의무가 있거나 분쟁 대응을 위해 필요한 정보는 해당 기간 동안 분리 보관할 수 있습니다.</p>
+
+      <h2>4. 제3자 제공 및 처리 위탁</h2>
+      <p>Copula는 이용자 동의 또는 법령상 근거가 있는 경우를 제외하고 개인정보를 제3자에게 제공하지 않습니다. 서비스 운영을 위해 다음 처리자를 이용할 수 있습니다.</p>
+      <table>
+        <thead>
+          <tr><th>수탁자</th><th>업무</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Supabase</td><td>인증, 데이터베이스, 스토리지, 서버리스 함수 인프라 제공</td></tr>
+          <tr><td>Apple</td><td>Apple 로그인 사용 시 인증 처리</td></tr>
+          <tr><td>브라우저/운영체제 푸시 서비스</td><td>이용자가 허용한 푸시 알림 전달</td></tr>
+        </tbody>
+      </table>
+
+      <h2>5. 이용자의 권리</h2>
+      <p>이용자는 개인정보 열람, 정정, 삭제, 처리정지, 동의 철회를 요청할 수 있습니다. 계정 정보는 앱의 계정 화면에서 직접 수정할 수 있으며, 탈퇴 또는 삭제 요청은 문의 채널로 접수할 수 있습니다.</p>
+
+      <h2>6. 안전성 확보 조치</h2>
+      <ul>
+        <li>인증 기반 접근 제어와 커뮤니티 멤버십 기준 Row Level Security 적용</li>
+        <li>비공개 스토리지와 제한된 초대 코드 기반 참여</li>
+        <li>비밀번호 및 인증 정보의 직접 저장 금지</li>
+        <li>운영 접근 권한 최소화와 로그 기반 장애 대응</li>
+      </ul>
+
+      <h2>7. 문의</h2>
+      <p>개인정보 관련 문의, 권리 행사, 탈퇴 요청은 <a href="mailto:support@copula.app">support@copula.app</a>으로 보내 주세요.</p>
+
+      <footer>
+        <a href="/legal/terms.html">이용약관</a> · <a href="/legal/support.html">문의 및 탈퇴 안내</a>
+      </footer>
+    </main>
+  </body>
+</html>

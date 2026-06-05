@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#F0717A" />
+    <title>Copula</title>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/assets/favicon.png" type="image/png" />
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+    <script>
+      (function() {
+        var RELOADED_KEY = 'copula_recovery_reloaded';
+
+        function showDebugBanner(type, message) {
+          var div = document.createElement('div');
+          div.style.position = 'fixed';
+          div.style.top = '0';
+          div.style.left = '0';
+          div.style.width = '100%';
+          div.style.background = '#ffdddd';
+          div.style.color = '#ff0000';
+          div.style.padding = '12px';
+          div.style.fontSize = '12px';
+          div.style.zIndex = '999999';
+          div.style.whiteSpace = 'pre-wrap';
+          div.style.boxSizing = 'border-box';
+          div.innerHTML = '<strong>[' + type + ']</strong> ' + message;
+          document.body ? document.body.appendChild(div) : document.documentElement.appendChild(div);
+        }
+
+        function forceRecovery(reason) {
+          console.warn('[Copula Recovery] Triggering hard reset: ' + reason);
+          
+          if (sessionStorage.getItem(RELOADED_KEY)) {
+            showDebugBanner('RECOVERY FAILED', '자동 복구 실패: 페이지 새로고침을 수동으로 해주세요. (' + reason + ')');
+            return;
+          }
+          
+          sessionStorage.setItem(RELOADED_KEY, 'true');
+
+          if (navigator.serviceWorker) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+              var promises = registrations.map(function(reg) {
+                return reg.unregister();
+              });
+              return Promise.all(promises);
+            }).then(clearCachesAndReload).catch(clearCachesAndReload);
+          } else {
+            clearCachesAndReload();
+          }
+
+          function clearCachesAndReload() {
+            if (window.caches) {
+              caches.keys().then(function(keys) {
+                return Promise.all(keys.map(function(key) {
+                  return caches.delete(key);
+                }));
+              }).then(reloadPage).catch(reloadPage);
+            } else {
+              reloadPage();
+            }
+          }
+
+          function reloadPage() {
+            window.location.reload(true);
+          }
+        }
+
+        window.onerror = function(message, source, lineno, colno, error) {
+          var errorMsg = message + ' at ' + source + ':' + lineno + ':' + colno + (error ? '\n' + error.stack : '');
+          showDebugBanner('JS ERROR', errorMsg);
+          
+          if (message.indexOf('module') > -1 || message.indexOf('SyntaxError') > -1 || message.indexOf('Unexpected token') > -1) {
+            forceRecovery('JS Parse/Syntax Error');
+          }
+          return false;
+        };
+
+        window.addEventListener('unhandledrejection', function(event) {
+          showDebugBanner('UNHANDLED REJECTION', event.reason);
+        });
+
+        // Capture script/stylesheet load failures (usually caused by stale index.html requesting deleted hashed bundles)
+        window.addEventListener('error', function(event) {
+          var target = event.target;
+          if (target && (target.tagName === 'SCRIPT' || target.tagName === 'LINK')) {
+            var url = target.src || target.href;
+            showDebugBanner('LOAD ERROR', '자원 로드 실패: ' + url);
+            forceRecovery('Asset load failed: ' + url);
+          }
+        }, true);
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script src="/src/main.tsx" type="module"></script>
+  </body>
+</html>

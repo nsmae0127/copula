@@ -75,10 +75,6 @@ export function Layout({
     setTheme((prev) => (prev === "light" ? "dark" : "light"));
   };
 
-  const subtitle = activeView === "community" && selectedCommunity
-    ? selectedCommunity.name
-      : "";
-
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -89,7 +85,6 @@ export function Layout({
           </div>
           <div>
             <span className="brand-title">Copula</span>
-            {subtitle ? <span className="brand-subtitle">{subtitle}</span> : null}
           </div>
         </div>
         <div className="top-actions">

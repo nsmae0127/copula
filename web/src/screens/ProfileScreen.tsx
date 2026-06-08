@@ -86,7 +86,6 @@ export function ProfileScreen({
   return (
     <div className="profile-container">
       <section className="page-head">
-        <span className="eyebrow">계정 설정</span>
         <h1>계정</h1>
       </section>
 

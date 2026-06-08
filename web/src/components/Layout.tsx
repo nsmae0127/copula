@@ -77,8 +77,6 @@ export function Layout({
 
   const subtitle = activeView === "community" && selectedCommunity
     ? selectedCommunity.name
-    : activeView === "messages"
-      ? "메시지"
       : "";
 
   return (
@@ -91,7 +89,7 @@ export function Layout({
           </div>
           <div>
             <span className="brand-title">Copula</span>
-            <span className="brand-subtitle">{subtitle}</span>
+            {subtitle ? <span className="brand-subtitle">{subtitle}</span> : null}
           </div>
         </div>
         <div className="top-actions">

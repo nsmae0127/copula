@@ -3034,7 +3034,9 @@ select:focus-visible {
 
 .messages-screen-head h1 {
   color: var(--ink);
+  font-size: 1.18rem;
   font-weight: 900;
+  line-height: 1.15;
 }
 
 .messages-screen-head span {
@@ -3102,10 +3104,10 @@ select:focus-visible {
 }
 
 .conversation-title-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
 }
 
@@ -3123,6 +3125,30 @@ select:focus-visible {
   color: var(--muted);
   font-size: 0.7rem;
   font-weight: 820;
+}
+
+.conversation-member-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 30px;
+  min-height: 22px;
+  border: 1px solid color-mix(in srgb, var(--accent, var(--primary)) 22%, rgba(238, 227, 232, 0.88));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent, var(--primary)) 9%, rgba(255, 255, 255, 0.82));
+  color: color-mix(in srgb, var(--accent, var(--primary)) 76%, var(--ink));
+  padding: 0 7px;
+  font-size: 0.68rem;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.conversation-member-pill svg {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
 }
 
 .conversation-preview {
@@ -3173,6 +3199,24 @@ select:focus-visible {
   transform: none !important;
 }
 
+.messages-screen-chat {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 100dvh;
+  gap: 12px;
+  overflow: hidden;
+  padding: max(14px, env(safe-area-inset-top)) 14px 0;
+  background:
+    linear-gradient(180deg, #fff8fb 0, #fbf4ff 48%, #fff8fa 100%),
+    var(--bg);
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  animation: slide-from-right var(--motion-base) var(--ease-out) both !important;
+}
+
 .messages-head {
   display: flex;
   align-items: center;
@@ -3203,6 +3247,10 @@ select:focus-visible {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   justify-content: stretch;
+  align-items: center;
+  min-width: 0;
+  border-bottom: 1px solid rgba(238, 227, 232, 0.86);
+  padding: 0 0 12px;
 }
 
 .messages-chat-head .icon-button {
@@ -3223,6 +3271,25 @@ select:focus-visible {
   font-weight: 900 !important;
 }
 
+.messages-title-line {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.messages-title-line h2 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.messages-head .conversation-member-pill {
+  color: color-mix(in srgb, var(--accent, var(--primary)) 76%, var(--ink));
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
 .messages-list {
   display: flex;
   flex-direction: column;
@@ -3234,6 +3301,14 @@ select:focus-visible {
   scroll-padding-bottom: 146px;
   scroll-behavior: smooth;
   scrollbar-width: none;
+}
+
+.messages-screen-chat .messages-list {
+  min-height: 0;
+  max-height: none;
+  height: 100%;
+  padding: 12px 2px 122px;
+  scroll-padding-bottom: 122px;
 }
 
 .messages-list::-webkit-scrollbar {
@@ -3432,6 +3507,14 @@ select:focus-visible {
     0 18px 38px rgba(74, 55, 82, 0.14),
     0 8px 20px rgba(240, 113, 122, 0.1);
   backdrop-filter: blur(22px) saturate(1.18);
+}
+
+.messages-screen-chat .message-composer {
+  right: 12px;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  left: 12px;
+  z-index: 72;
+  max-width: 720px;
 }
 
 .message-composer textarea {
@@ -5893,6 +5976,18 @@ select:focus {
   background:
     linear-gradient(135deg, rgba(50, 40, 58, 0.92), rgba(42, 34, 48, 0.82)),
     var(--glass);
+}
+
+:root.dark-theme .messages-screen-chat {
+  background:
+    linear-gradient(180deg, #211923 0, #271F2E 48%, #201A24 100%),
+    var(--bg);
+}
+
+:root.dark-theme .conversation-member-pill {
+  border-color: color-mix(in srgb, var(--accent, var(--primary)) 32%, rgba(90, 69, 94, 0.88));
+  background: color-mix(in srgb, var(--accent, var(--primary)) 14%, rgba(42, 34, 48, 0.82));
+  color: color-mix(in srgb, var(--accent, var(--primary)) 58%, #fff4fa);
 }
 
 :root.dark-theme .community-hero-notice {

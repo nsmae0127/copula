@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type PointerEvent } from "react";
 import { ChevronLeft, MessageCircle, Send, SmilePlus, Users } from "lucide-react";
 import { EmptyState } from "../components/ui";
 import type { Community, CopulaNotification } from "../types";
@@ -62,7 +62,6 @@ export function MessagesScreen({
       <div className="messages-screen-head">
         <div>
           <h1>메시지</h1>
-          <span>Copula별 대화를 한곳에서 확인하세요.</span>
         </div>
       </div>
 
@@ -76,22 +75,23 @@ export function MessagesScreen({
               key={community.id}
               type="button"
               className="conversation-card"
+              style={{ "--accent": community.accent } as CSSProperties}
               onClick={() => onSelectConversation(community.id)}
             >
-              <span className="conversation-avatar" style={{ "--accent": community.accent } as CSSProperties}>
+              <span className="conversation-avatar">
                 {community.name.charAt(0).toUpperCase()}
               </span>
               <span className="conversation-main">
                 <span className="conversation-title-row">
+                  <span className="conversation-member-pill" aria-label={`멤버 ${community.members.length}명`}>
+                    <Users aria-hidden="true" />
+                    {community.members.length}
+                  </span>
                   <strong>{community.name}</strong>
-                  <small>{latest ? formatRelativeMessageTime(latest.createdAt) : `${community.members.length}명`}</small>
+                  <small>{latest ? formatRelativeMessageTime(latest.createdAt) : "새 대화"}</small>
                 </span>
                 <span className="conversation-preview">
                   {latest ? `${latest.senderName}: ${latest.body}` : "아직 메시지가 없습니다."}
-                </span>
-                <span className="conversation-meta">
-                  <Users aria-hidden="true" />
-                  {community.members.length}명
                 </span>
               </span>
               {unreadCount > 0 ? <span className="conversation-unread">{unreadCount > 9 ? "9+" : unreadCount}</span> : null}
@@ -123,6 +123,7 @@ function ConversationPanel({
   const [error, setError] = useState<string | null>(null);
   const [reactionTargetId, setReactionTargetId] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const swipeStartRef = useRef<{ x: number; y: number; tracking: boolean } | null>(null);
   const messages = [...community.messages].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
   useEffect(() => {
@@ -159,18 +160,53 @@ function ConversationPanel({
     }
   }
 
+  function handlePointerDown(event: PointerEvent<HTMLElement>) {
+    if (event.pointerType === "mouse") return;
+    swipeStartRef.current = {
+      x: event.clientX,
+      y: event.clientY,
+      tracking: event.clientX <= 44
+    };
+  }
+
+  function handlePointerMove(event: PointerEvent<HTMLElement>) {
+    const start = swipeStartRef.current;
+    if (!start?.tracking) return;
+    const deltaX = event.clientX - start.x;
+    const deltaY = event.clientY - start.y;
+    if (deltaX > 72 && Math.abs(deltaY) < 54) {
+      swipeStartRef.current = null;
+      onBackToList();
+    }
+  }
+
+  function clearSwipeTracking() {
+    swipeStartRef.current = null;
+  }
+
   return (
-    <section className="messages-module messages-screen-chat" aria-label={`${community.name} 메시지`}>
+    <section
+      className="messages-module messages-screen-chat"
+      aria-label={`${community.name} 메시지`}
+      style={{ "--accent": community.accent } as CSSProperties}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={clearSwipeTracking}
+      onPointerCancel={clearSwipeTracking}
+    >
       <div className="messages-head messages-chat-head">
         <button className="icon-button compact" type="button" onClick={onBackToList} aria-label="대화 목록">
           <ChevronLeft aria-hidden="true" />
         </button>
         <div>
-          <h2>{community.name}</h2>
-          <span>
-            Copula 대화 · {community.members.length}명
-            {unreadCount > 0 ? ` · 읽지 않음 ${unreadCount}` : ""}
+          <span className="messages-title-line">
+            <span className="conversation-member-pill" aria-label={`멤버 ${community.members.length}명`}>
+              <Users aria-hidden="true" />
+              {community.members.length}
+            </span>
+            <h2>{community.name}</h2>
           </span>
+          {unreadCount > 0 ? <span>읽지 않음 {unreadCount}</span> : null}
         </div>
         <span className="messages-count-pill">{messages.length}</span>
       </div>

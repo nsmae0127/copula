@@ -612,9 +612,8 @@ function CommunityHeroNotice({ notice }: { notice: Community["notices"][number] 
       aria-label={`공지 ${noticeText}`}
       style={{ "--notice-scroll-duration": duration } as CSSProperties}
     >
-      <span className="community-hero-notice-label">
+      <span className="community-hero-notice-label" aria-hidden="true">
         <Megaphone aria-hidden="true" />
-        공지
       </span>
       <span className="community-hero-notice-window">
         {shouldScroll ? (

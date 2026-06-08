@@ -1,17 +1,21 @@
 import { useEffect, useState, type ReactNode } from "react";
 import {
   Bell,
+  Blocks,
   CalendarDays,
   Home,
   Image,
   KeyRound,
   Megaphone,
   MessageCircle,
+  MessageCirclePlus,
   Moon,
   Plus,
   Sun,
+  UserPlus,
   UserRound,
   Users,
+  UsersRound,
   Video,
   type LucideIcon
 } from "lucide-react";
@@ -74,6 +78,8 @@ export function Layout({
   const toggleTheme = () => {
     setTheme((prev) => (prev === "light" ? "dark" : "light"));
   };
+  const plusButton = getPlusButtonConfig(activeView, Boolean(selectedCommunity));
+  const PlusButtonIcon = plusButton.icon;
 
   return (
     <div className="app-shell">
@@ -147,16 +153,18 @@ export function Layout({
         {/* + (Plus Button) */}
         <div className="nav-plus-container">
           <button
-            className={`nav-item nav-plus-button ${isPlusMenuOpen ? "is-active" : ""}`}
+            className={`nav-item nav-plus-button nav-plus-button-${plusButton.tone} ${isPlusMenuOpen ? "is-active" : ""}`}
             onClick={() => {
               playTapSound();
               setIsPlusMenuOpen(!isPlusMenuOpen);
             }}
-            aria-label="copula 추가 메뉴"
+            aria-label={plusButton.label}
             aria-expanded={isPlusMenuOpen}
+            title={plusButton.label}
           >
-            <span className="nav-plus-icon-wrap">
-              <Plus aria-hidden="true" />
+            <span className="nav-plus-icon-wrap" aria-hidden="true">
+              <PlusButtonIcon className="nav-plus-main-icon" />
+              {plusButton.showBadge ? <Plus className="nav-plus-badge-icon" /> : null}
             </span>
           </button>
           
@@ -234,22 +242,22 @@ export function Layout({
                       onClick={() => {
                         playTapSound();
                         setIsPlusMenuOpen(false);
-                        onOpenJoin();
+                        onOpenCreateCommunity();
                       }}
                     >
-                      <KeyRound size={16} />
-                      <span>초대 코드로 참여</span>
+                      <UsersRound size={16} />
+                      <span>새 copula 만들기</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => {
                         playTapSound();
                         setIsPlusMenuOpen(false);
-                        onOpenCreateCommunity();
+                        onOpenJoin();
                       }}
                     >
-                      <Plus size={16} />
-                      <span>새 copula 만들기</span>
+                      <KeyRound size={16} />
+                      <span>초대 코드로 참여</span>
                     </button>
                   </div>
                 ) : null}
@@ -295,4 +303,45 @@ export function Layout({
       </nav>
     </div>
   );
+}
+
+function getPlusButtonConfig(activeView: ViewName, hasSelectedCommunity: boolean): {
+  icon: LucideIcon;
+  label: string;
+  showBadge: boolean;
+  tone: "home" | "content" | "message" | "profile";
+} {
+  if (activeView === "community" && hasSelectedCommunity) {
+    return {
+      icon: Blocks,
+      label: "콘텐츠 추가",
+      showBadge: true,
+      tone: "content"
+    };
+  }
+
+  if (activeView === "messages" && hasSelectedCommunity) {
+    return {
+      icon: MessageCirclePlus,
+      label: "메시지 작성",
+      showBadge: false,
+      tone: "message"
+    };
+  }
+
+  if (activeView === "profile") {
+    return {
+      icon: UserPlus,
+      label: "copula 참여/생성",
+      showBadge: false,
+      tone: "profile"
+    };
+  }
+
+  return {
+    icon: UsersRound,
+    label: "새 copula 만들기",
+    showBadge: true,
+    tone: "home"
+  };
 }

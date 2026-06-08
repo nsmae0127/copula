@@ -4927,12 +4927,13 @@ select:focus-visible {
 }
 
 .nav-plus-icon-wrap {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
   background: rgba(240, 113, 122, 0.1);
   color: var(--brand-coral);
   box-shadow:
@@ -4944,17 +4945,70 @@ select:focus-visible {
 }
 
 .bottom-nav .nav-plus-button:hover .nav-plus-icon-wrap {
-  transform: rotate(90deg);
+  transform: translateY(-1px) scale(1.04);
 }
 
 .bottom-nav .nav-plus-button.is-active .nav-plus-icon-wrap {
-  transform: rotate(45deg);
+  transform: scale(0.96);
   background: rgba(255, 255, 255, 0.13);
   color: white;
 }
 
 :root.dark-theme .bottom-nav .nav-plus-button.is-active .nav-plus-icon-wrap {
   background: rgba(255, 255, 255, 0.13);
+}
+
+.nav-plus-main-icon {
+  width: 20px;
+  height: 20px;
+  stroke-width: 2.45;
+}
+
+.nav-plus-badge-icon {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  border-radius: 999px;
+  background: var(--brand-coral);
+  color: white;
+  padding: 2px;
+  box-shadow: 0 6px 10px rgba(240, 113, 122, 0.28);
+  stroke-width: 3;
+}
+
+.bottom-nav .nav-plus-button-home .nav-plus-icon-wrap {
+  background: rgba(240, 113, 122, 0.1);
+  color: var(--brand-coral-ink);
+}
+
+.bottom-nav .nav-plus-button-content .nav-plus-icon-wrap {
+  background: rgba(140, 116, 186, 0.13);
+  color: var(--brand-lavender);
+}
+
+.bottom-nav .nav-plus-button-content .nav-plus-badge-icon {
+  background: var(--brand-lavender);
+  box-shadow: 0 6px 10px rgba(140, 116, 186, 0.24);
+}
+
+.bottom-nav .nav-plus-button-message .nav-plus-icon-wrap {
+  background: rgba(111, 183, 165, 0.14);
+  color: var(--teal);
+}
+
+.bottom-nav .nav-plus-button-profile .nav-plus-icon-wrap {
+  background: rgba(246, 168, 190, 0.15);
+  color: var(--brand-coral-ink);
+}
+
+.bottom-nav .nav-plus-button.is-active .nav-plus-badge-icon {
+  border-color: rgba(255, 255, 255, 0.42);
+  background: rgba(255, 255, 255, 0.96);
+  color: #7f67ad;
+  box-shadow: none;
 }
 
 .plus-menu-backdrop {

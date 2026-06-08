@@ -56,14 +56,12 @@ interface CommunityScreenProps {
   onOpenJoin: () => void;
   onOpenCreateCommunity: () => void;
   onOpenCommunitySettings: () => void;
-  onOpenNotice: () => void;
   onOpenEvent: (dateKey?: string) => void;
   onOpenAlbum: () => void;
   onOpenAlbumItem: (albumId: string) => void;
   onOpenAlbumItemDetail: (albumId: string, itemId: string) => void;
   onOpenDDay: () => void;
   onSetContentModules: (communityId: string, modules: CommunityModule[]) => Promise<void> | void;
-  onEditNotice: (noticeId: string) => void;
   onEditEvent: (eventId: string) => void;
   onEditAlbum: (albumId: string) => void;
   onEditAlbumItem: (albumId: string, itemId: string) => void;
@@ -72,7 +70,6 @@ interface CommunityScreenProps {
   onDeleteAlbum: (albumId: string) => void;
   onDeleteAlbumItem: (albumId: string, itemId: string) => void;
   onDeleteDDay: (ddayId: string) => void;
-  onDeleteNotice: (noticeId: string) => void;
   onUpdateMemberRole: (memberId: string, role: Role) => void;
   onRemoveMember: (memberId: string) => void;
   canManageRelationships: boolean;
@@ -194,14 +191,12 @@ export function CommunityScreen({
   onOpenJoin,
   onOpenCreateCommunity,
   onOpenCommunitySettings,
-  onOpenNotice,
   onOpenEvent,
   onOpenAlbum,
   onOpenAlbumItem,
   onOpenAlbumItemDetail,
   onOpenDDay,
   onSetContentModules,
-  onEditNotice,
   onEditEvent,
   onEditAlbum,
   onEditAlbumItem,
@@ -210,7 +205,6 @@ export function CommunityScreen({
   onDeleteAlbum,
   onDeleteAlbumItem,
   onDeleteDDay,
-  onDeleteNotice,
   onUpdateMemberRole,
   onRemoveMember,
   canManageRelationships,
@@ -301,13 +295,10 @@ export function CommunityScreen({
             onModuleChange={onModuleChange}
             onToggleContentManager={openContentManager}
             onAddContentModule={addContentModule}
-            onOpenNotice={onOpenNotice}
             onOpenEvent={onOpenEvent}
             onOpenAlbum={onOpenAlbum}
             onOpenOneSecondUpload={onOpenOneSecondUpload}
             onCopyInviteCode={onCopyInviteCode}
-            onEditNotice={onEditNotice}
-            onDeleteNotice={onDeleteNotice}
           />
           <FeedModule
             community={community}
@@ -553,6 +544,8 @@ function CommunityHeroCard({
   onOpenCommunitySettings: () => void;
   onCopyInviteCode: () => void;
 }) {
+  const primaryNotice = sortNotices(community.notices)[0];
+
   return (
     <div
       className={`community-hero ${community.coverUrl ? "has-cover" : "has-gradient"}`}
@@ -602,7 +595,37 @@ function CommunityHeroCard({
             </span>
           ) : null}
         </div>
+        {primaryNotice ? <CommunityHeroNotice notice={primaryNotice} /> : null}
       </div>
+    </div>
+  );
+}
+
+function CommunityHeroNotice({ notice }: { notice: Community["notices"][number] }) {
+  const noticeText = [notice.title, notice.body].filter(Boolean).join(" · ");
+  const shouldScroll = noticeText.length > 34;
+  const duration = `${Math.min(28, Math.max(12, noticeText.length * 0.34))}s`;
+
+  return (
+    <div
+      className={`community-hero-notice ${shouldScroll ? "is-scrolling" : ""}`}
+      aria-label={`공지 ${noticeText}`}
+      style={{ "--notice-scroll-duration": duration } as CSSProperties}
+    >
+      <span className="community-hero-notice-label">
+        <Megaphone aria-hidden="true" />
+        공지
+      </span>
+      <span className="community-hero-notice-window">
+        {shouldScroll ? (
+          <span className="community-hero-notice-track">
+            <span>{noticeText}</span>
+            <span aria-hidden="true">{noticeText}</span>
+          </span>
+        ) : (
+          <span className="community-hero-notice-text">{noticeText}</span>
+        )}
+      </span>
     </div>
   );
 }
@@ -616,13 +639,10 @@ function CommunityHomePanel({
   onModuleChange,
   onToggleContentManager,
   onAddContentModule,
-  onOpenNotice,
   onOpenEvent,
   onOpenAlbum,
   onOpenOneSecondUpload,
-  onCopyInviteCode,
-  onEditNotice,
-  onDeleteNotice
+  onCopyInviteCode
 }: {
   community: Community;
   canManageContent: boolean;
@@ -632,15 +652,11 @@ function CommunityHomePanel({
   onModuleChange: (module: CommunityModule) => void;
   onToggleContentManager: () => void;
   onAddContentModule: (module: OptionalContentModule) => void;
-  onOpenNotice: () => void;
   onOpenEvent: (dateKey?: string) => void;
   onOpenAlbum: () => void;
   onOpenOneSecondUpload: () => void;
   onCopyInviteCode: () => void;
-  onEditNotice: (noticeId: string) => void;
-  onDeleteNotice: (noticeId: string) => void;
 }) {
-  const primaryNotice = sortNotices(community.notices)[0];
   const todayScheduleCount = countTodayScheduleItems(community);
   const openCommitmentCount = community.commitments.filter((item) => item.status === "open").length;
   const todaysVlogCount = (community.oneSecondLogs || []).filter((log) => isSameDate(log.createdAt, new Date())).length;
@@ -666,23 +682,6 @@ function CommunityHomePanel({
           <Settings aria-hidden="true" />
         </button>
       </div>
-
-      {primaryNotice ? (
-        <NoticePreviewCard
-          community={community}
-          notice={primaryNotice}
-          canManageContent={canManageContent}
-          onOpenNotice={onOpenNotice}
-          onEditNotice={onEditNotice}
-          onDeleteNotice={onDeleteNotice}
-        />
-      ) : canManageContent ? (
-        <button className="copula-notice-preview is-empty" type="button" onClick={onOpenNotice}>
-          <Megaphone aria-hidden="true" />
-          <span>공지 작성</span>
-          <ChevronRight aria-hidden="true" />
-        </button>
-      ) : null}
 
       {isStarter ? (
         <CopulaStarterPanel
@@ -739,47 +738,6 @@ function CommunityHomePanel({
         />
       ) : null}
     </section>
-  );
-}
-
-function NoticePreviewCard({
-  community,
-  notice,
-  canManageContent,
-  onOpenNotice,
-  onEditNotice,
-  onDeleteNotice
-}: {
-  community: Community;
-  notice: Community["notices"][number];
-  canManageContent: boolean;
-  onOpenNotice: () => void;
-  onEditNotice: (noticeId: string) => void;
-  onDeleteNotice: (noticeId: string) => void;
-}) {
-  return (
-    <article className="copula-notice-preview" style={{ "--accent": community.accent } as CSSProperties}>
-      <button type="button" className="copula-notice-main" onClick={onOpenNotice}>
-        <span className="copula-notice-icon">
-          <Megaphone aria-hidden="true" />
-        </span>
-        <span>
-          <small>{notice.pinned ? "고정 공지" : "공지"}</small>
-          <strong>{notice.title}</strong>
-          <em>{notice.body}</em>
-        </span>
-      </button>
-      {canManageContent ? (
-        <span className="copula-notice-actions">
-          <button className="row-icon-button" type="button" onClick={() => onEditNotice(notice.id)} aria-label="공지 수정" title="공지 수정">
-            <Pencil aria-hidden="true" />
-          </button>
-          <button className="row-icon-button danger" type="button" onClick={() => onDeleteNotice(notice.id)} aria-label="공지 삭제" title="공지 삭제">
-            <Trash2 aria-hidden="true" />
-          </button>
-        </span>
-      ) : null}
-    </article>
   );
 }
 

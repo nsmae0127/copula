@@ -569,7 +569,6 @@ export function App() {
           onOpenJoin={() => openJoinModal()}
           onOpenCreateCommunity={() => setModal({ type: "community" })}
           onOpenCommunitySettings={() => setModal({ type: "communityEdit" })}
-          onOpenNotice={() => setModal({ type: "notice" })}
           onOpenEvent={(eventDate) => setModal({ type: "event", eventDate })}
           onOpenAlbum={() => setModal({ type: "album" })}
           onOpenAlbumItem={(albumId) => setModal({ type: "albumItem", albumId })}
@@ -579,7 +578,6 @@ export function App() {
           }}
           onOpenDDay={() => setModal({ type: "dday" })}
           onSetContentModules={actions.setCommunityContentModules}
-          onEditNotice={openEditNotice}
           onEditEvent={openEditEvent}
           onEditAlbum={openEditAlbum}
           onEditAlbumItem={openEditAlbumItem}
@@ -588,7 +586,6 @@ export function App() {
           onDeleteAlbum={requestDeleteAlbum}
           onDeleteAlbumItem={requestDeleteAlbumItem}
           onDeleteDDay={requestDeleteDDay}
-          onDeleteNotice={requestDeleteNotice}
           onUpdateMemberRole={updateMemberRole}
           onRemoveMember={requestRemoveMember}
           canManageRelationships={

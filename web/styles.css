@@ -1734,7 +1734,8 @@ select:focus-visible {
 
 .community-hero.has-cover .community-invite-code,
 .community-hero.has-cover .community-member-pill,
-.community-hero.has-cover .community-swipe-hint {
+.community-hero.has-cover .community-swipe-hint,
+.community-hero.has-cover .community-hero-notice {
   border-color: rgba(255, 255, 255, 0.18);
   background: rgba(255, 255, 255, 0.18);
   color: #ffffff;
@@ -1746,9 +1747,11 @@ select:focus-visible {
 }
 
 .community-hero-top {
+  position: relative;
   display: grid;
   align-items: flex-start;
   gap: 12px;
+  padding-right: 86px;
 }
 
 .community-hero-top .page-head {
@@ -1811,7 +1814,7 @@ select:focus-visible {
   gap: 6px;
   position: absolute;
   right: 0;
-  bottom: 0;
+  top: 0;
 }
 
 .community-hero-actions .icon-button {
@@ -1824,7 +1827,7 @@ select:focus-visible {
   justify-content: flex-start;
   gap: 10px;
   min-width: 0;
-  padding-right: 100px;
+  padding-right: 0;
 }
 
 .community-member-pill,
@@ -1891,6 +1894,95 @@ select:focus-visible {
 .community-stack-indicators button.is-active {
   width: 18px;
   background: var(--accent, var(--primary));
+}
+
+.community-hero-notice {
+  --notice-scroll-duration: 16s;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 32px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--accent, var(--primary)) 20%, rgba(238, 227, 232, 0.86));
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--accent, var(--primary)) 8%, rgba(255, 255, 255, 0.78));
+  color: var(--ink);
+  padding: 0 9px;
+}
+
+.community-hero-notice-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  color: color-mix(in srgb, var(--accent, var(--primary)) 78%, var(--ink));
+  font-size: 0.68rem;
+  font-weight: 950;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.community-hero-notice-label svg {
+  width: 14px;
+  height: 14px;
+}
+
+.community-hero-notice-window {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 0.76rem;
+  font-weight: 820;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.community-hero-notice-text {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.community-hero-notice-track {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.community-hero-notice-track span {
+  white-space: nowrap;
+}
+
+.community-hero-notice-track span + span {
+  display: none;
+}
+
+@media (max-width: 680px) {
+  .community-hero-notice.is-scrolling .community-hero-notice-track {
+    display: inline-flex;
+    min-width: max-content;
+    gap: 28px;
+    overflow: visible;
+    padding-right: 28px;
+    text-overflow: clip;
+    animation: community-notice-marquee var(--notice-scroll-duration) linear infinite;
+    will-change: transform;
+  }
+
+  .community-hero-notice.is-scrolling .community-hero-notice-track span + span {
+    display: inline;
+  }
+}
+
+@keyframes community-notice-marquee {
+  to {
+    transform: translateX(calc(-50% - 14px));
+  }
 }
 
 .copula-home-panel {
@@ -5625,6 +5717,19 @@ select:focus {
     animation-iteration-count: 1 !important;
     animation-delay: 0ms !important;
   }
+
+  .community-hero-notice.is-scrolling .community-hero-notice-track {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    animation: none !important;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .community-hero-notice.is-scrolling .community-hero-notice-track span + span {
+    display: none;
+  }
 }
 
 /* --- Dark Theme Overrides --- */
@@ -5754,6 +5859,7 @@ select:focus {
 
 :root.dark-theme .module-tabs,
 :root.dark-theme .tabs,
+:root.dark-theme .community-hero-notice,
 :root.dark-theme .copula-notice-preview,
 :root.dark-theme .today-metric-button,
 :root.dark-theme .copula-action-row button,

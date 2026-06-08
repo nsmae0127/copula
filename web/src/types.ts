@@ -182,6 +182,7 @@ export interface Community {
   accent: string;
   coverUrl: string | null;
   createdAt: string;
+  contentModules: CommunityModule[];
   members: CommunityMember[];
   events: CalendarEvent[];
   albums: Album[];

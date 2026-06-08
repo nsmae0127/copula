@@ -251,19 +251,19 @@ export function OneSecondModule({
           </div>
           <h2>1s Vlog</h2>
           <p className="description">
-            매일 1초의 비디오 일기를 기록하세요.<br />
-            그날 모인 멤버들의 비디오가 하나로 이어진 오늘의 Vlog가 됩니다!
+            매일 1초의 비디오를 기록하세요.<br />
+            멤버들의 기록이 이어져 오늘 1s가 됩니다.
           </p>
 
           <div style={{ marginTop: "1.5rem" }}>
             {hasUploadedToday ? (
               <div className="vlog-uploaded-badge">
-                <span>✨ 오늘의 1초 업로드 완료!</span>
+                <span>오늘 1s 완료</span>
               </div>
             ) : (
               <button className="primary-button inline-flex" onClick={onOpenOneSecondUpload}>
                 <Plus size={18} style={{ marginRight: "0.25rem" }} />
-                오늘의 1초 기록하기
+                오늘 1s 기록
               </button>
             )}
           </div>

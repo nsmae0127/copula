@@ -207,7 +207,7 @@ export function HomeScreen({
                     <button
                       className={`story-button ${isActive ? "is-active" : ""} ${hasTodayVlog ? "has-today-vlog" : ""} ${hasMyTodayLog ? "" : "needs-today-log"}`}
                       onClick={handleStoryClick}
-                      title={hasTodayVlog ? "오늘의 1s Vlog 바로보기" : `${community.name} 이동`}
+                      title={hasTodayVlog ? "오늘 1s 보기" : `${community.name} 이동`}
                     >
                       <div className="story-avatar-wrap">
                         <div className="story-avatar">
@@ -235,8 +235,8 @@ export function HomeScreen({
                           event.stopPropagation();
                           onOpenOneSecondUpload?.();
                         }}
-                        aria-label={`${community.name} 오늘의 1초 일기 기록하기`}
-                        title="오늘의 1초 일기 기록하기"
+                        aria-label={`${community.name} 오늘 1s 기록하기`}
+                        title="오늘 1s 기록하기"
                         disabled={!onOpenOneSecondUpload}
                       >
                         <Plus aria-hidden="true" />

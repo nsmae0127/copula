@@ -7,6 +7,7 @@ import type {
   Circle,
   Community,
   CommunityMember,
+  CommunityModule,
   CommunityMessage,
   Commitment,
   CopulaNotification,
@@ -47,6 +48,7 @@ export interface CopulaRepository {
     communityId: string,
     input: { name: string; description: string; accent: string; coverUrl?: string | null; coverFile?: File }
   ): Promise<Community>;
+  setCommunityContentModules?(communityId: string, modules: CommunityModule[]): Promise<CommunityModule[]>;
   regenerateInviteCode?(communityId: string): Promise<string>;
   addNotice?(communityId: string, notice: Omit<Notice, "id" | "createdAt">): Promise<Notice>;
   addEvent?(

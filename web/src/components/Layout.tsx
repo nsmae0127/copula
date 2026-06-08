@@ -169,30 +169,8 @@ export function Layout({
             <>
               <div className="plus-menu-backdrop" onClick={() => setIsPlusMenuOpen(false)} />
               <div className="plus-menu-popover">
-                {selectedCommunity ? (
+                {activeView === "community" && selectedCommunity ? (
                   <div className="plus-menu-section">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        playTapSound();
-                        setIsPlusMenuOpen(false);
-                        onOpenQuickMessage();
-                      }}
-                    >
-                      <MessageCircle size={16} />
-                      <span>메시지</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        playTapSound();
-                        setIsPlusMenuOpen(false);
-                        onOpenQuickAlbum();
-                      }}
-                    >
-                      <Image size={16} />
-                      <span>사진·메모</span>
-                    </button>
                     <button
                       type="button"
                       onClick={() => {
@@ -209,11 +187,11 @@ export function Layout({
                       onClick={() => {
                         playTapSound();
                         setIsPlusMenuOpen(false);
-                        onOpenQuickNotice();
+                        onOpenQuickAlbum();
                       }}
                     >
-                      <Megaphone size={16} />
-                      <span>공지</span>
+                      <Image size={16} />
+                      <span>앨범</span>
                     </button>
                     <button
                       type="button"
@@ -224,34 +202,62 @@ export function Layout({
                       }}
                     >
                       <Video size={16} />
-                      <span>1s Vlog</span>
+                      <span>오늘 1s</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        playTapSound();
+                        setIsPlusMenuOpen(false);
+                        onOpenQuickNotice();
+                      }}
+                    >
+                      <Megaphone size={16} />
+                      <span>공지</span>
                     </button>
                   </div>
                 ) : null}
-                <div className="plus-menu-section secondary">
-                <button
-                  type="button"
-                  onClick={() => {
-                    playTapSound();
-                    setIsPlusMenuOpen(false);
-                    onOpenJoin();
-                  }}
-                >
-                  <KeyRound size={16} />
-                  <span>초대 코드로 참여</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    playTapSound();
-                    setIsPlusMenuOpen(false);
-                    onOpenCreateCommunity();
-                  }}
-                >
-                  <Plus size={16} />
-                  <span>새 copula 만들기</span>
-                </button>
-                </div>
+                {activeView === "messages" && selectedCommunity ? (
+                  <div className="plus-menu-section">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        playTapSound();
+                        setIsPlusMenuOpen(false);
+                        onOpenQuickMessage();
+                      }}
+                    >
+                      <MessageCircle size={16} />
+                      <span>메시지 작성</span>
+                    </button>
+                  </div>
+                ) : null}
+                {activeView === "home" || activeView === "notifications" || activeView === "profile" || !selectedCommunity ? (
+                  <div className="plus-menu-section secondary">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        playTapSound();
+                        setIsPlusMenuOpen(false);
+                        onOpenJoin();
+                      }}
+                    >
+                      <KeyRound size={16} />
+                      <span>초대 코드로 참여</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        playTapSound();
+                        setIsPlusMenuOpen(false);
+                        onOpenCreateCommunity();
+                      }}
+                    >
+                      <Plus size={16} />
+                      <span>새 copula 만들기</span>
+                    </button>
+                  </div>
+                ) : null}
               </div>
             </>
           ) : null}

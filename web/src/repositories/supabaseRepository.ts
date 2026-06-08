@@ -9,6 +9,7 @@ import type {
   CalendarEvent,
   Circle,
   Community,
+  CommunityModule,
   CommunityMessage,
   CommunityMember,
   Commitment,
@@ -48,6 +49,12 @@ type CommunityMemberRow = {
   user_id: string;
   role: Role;
   joined_at: string;
+};
+
+type CommunityContentModuleRow = {
+  community_id: string;
+  module: CommunityModule;
+  enabled_at: string;
 };
 
 type InviteCodeRow = {
@@ -183,6 +190,7 @@ type CommitmentAssigneeRow = {
 const communitySelect = "id, name, description, accent, cover_url, created_at";
 const profileSelect = "id, display_name, handle, avatar_url";
 const memberSelect = "id, community_id, user_id, role, joined_at";
+const contentModuleSelect = "community_id, module, enabled_at";
 const eventSelect = "id, community_id, title, notes, location, starts_at, created_at";
 const albumSelect = "id, community_id, title, description, created_at";
 const albumItemSelect = "id, community_id, album_id, title, kind, media_url, created_by, created_at";
@@ -306,6 +314,7 @@ export function createSupabaseRepository(): CopulaRepository {
       ddays,
       notices,
       inviteCodes,
+      contentModules,
       oneSecondLogs,
       messageExtras,
       notifications
@@ -356,6 +365,7 @@ export function createSupabaseRepository(): CopulaRepository {
           .in("community_id", communityIds)
           .order("created_at", { ascending: false })
       ),
+      loadContentModules(communityIds),
       rows<OneSecondLogRow>(
         (supabase.from("one_second_logs" as any) as any)
           .select("*")
@@ -384,6 +394,7 @@ export function createSupabaseRepository(): CopulaRepository {
     const albumItemsByAlbum = groupBy(albumItems, (item) => item.album_id);
     const ddaysByCommunity = groupBy(ddays, (dday) => dday.community_id);
     const noticesByCommunity = groupBy(notices, (notice) => notice.community_id);
+    const contentModulesByCommunity = groupBy(contentModules, (module) => module.community_id);
     const oneSecondLogsByCommunity = groupBy(oneSecondLogs, (log) => log.community_id);
     const messagesByCommunity = groupBy(messageExtras.messages, (message) => message.community_id);
     const reactionsByMessage = groupBy(messageExtras.reactions, (reaction) => reaction.message_id);
@@ -402,6 +413,9 @@ export function createSupabaseRepository(): CopulaRepository {
         ),
         ddays: (ddaysByCommunity.get(community.id) ?? []).map(mapDDay),
         notices: (noticesByCommunity.get(community.id) ?? []).map(mapNotice),
+        contentModules: normalizeStoredCommunityModules(
+          (contentModulesByCommunity.get(community.id) ?? []).map((module) => module.module)
+        ),
         pairs: relationshipExtras?.get(community.id)?.pairs ?? [],
         circles: relationshipExtras?.get(community.id)?.circles ?? [],
         commitments: relationshipExtras?.get(community.id)?.commitments ?? [],
@@ -503,6 +517,23 @@ export function createSupabaseRepository(): CopulaRepository {
     );
     profiles.forEach((profile) => profileMap.set(profile.id, profile));
     return profileMap;
+  }
+
+  async function loadContentModules(communityIds: string[]): Promise<CommunityContentModuleRow[]> {
+    try {
+      return await rows<CommunityContentModuleRow>(
+        (supabase.from("community_content_modules" as any) as any)
+          .select(contentModuleSelect)
+          .in("community_id", communityIds)
+          .order("enabled_at", { ascending: true })
+      );
+    } catch (error) {
+      if (isMissingContentModuleTable(error)) {
+        return [];
+      }
+
+      throw error;
+    }
   }
 
   async function loadRelationshipExtras(communityIds: string[]): Promise<RelationshipExtrasByCommunity | null> {
@@ -939,6 +970,45 @@ export function createSupabaseRepository(): CopulaRepository {
       );
 
       return loadCommunity(communityId);
+    },
+
+    async setCommunityContentModules(communityId, modules) {
+      const user = await requireUser();
+      const normalizedModules = normalizeStoredCommunityModules(modules);
+
+      try {
+        const { error: deleteError } = await (supabase.from("community_content_modules" as any) as any)
+          .delete()
+          .eq("community_id", communityId);
+
+        if (deleteError) {
+          throw new Error(deleteError.message);
+        }
+
+        if (!normalizedModules.length) {
+          return [];
+        }
+
+        const insertedRows = await rows<CommunityContentModuleRow>(
+          (supabase.from("community_content_modules" as any) as any)
+            .insert(
+              normalizedModules.map((module) => ({
+                community_id: communityId,
+                module,
+                enabled_by: user.id
+              }))
+            )
+            .select(contentModuleSelect)
+        );
+
+        return normalizeStoredCommunityModules(insertedRows.map((row) => row.module));
+      } catch (error) {
+        if (isMissingContentModuleTable(error)) {
+          return normalizedModules;
+        }
+
+        throw error;
+      }
     },
 
     async regenerateInviteCode(communityId) {
@@ -1715,6 +1785,7 @@ function mapCommunity(
     accent: row.accent,
     coverUrl: row.cover_url || null,
     createdAt: row.created_at,
+    contentModules: nested.contentModules,
     members: nested.members,
     events: nested.events,
     albums: nested.albums,
@@ -1935,6 +2006,26 @@ function isMissingMessageTables(error: unknown) {
   }
 
   return ["community_messages", "message_reactions"].some((tableName) => message.includes(tableName));
+}
+
+function isMissingContentModuleTable(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  const looksMissing =
+    message.includes("does not exist") ||
+    message.includes("Could not find the table") ||
+    message.includes("PGRST205");
+  return looksMissing && message.includes("community_content_modules");
+}
+
+function normalizeStoredCommunityModules(modules: unknown): CommunityModule[] {
+  const storedModules: CommunityModule[] = ["calendar", "commitments", "relationships", "albums", "1s"];
+  if (!Array.isArray(modules)) return [];
+  const moduleSet = new Set(
+    modules.filter((module): module is CommunityModule =>
+      typeof module === "string" && storedModules.includes(module as CommunityModule)
+    )
+  );
+  return storedModules.filter((module) => moduleSet.has(module));
 }
 
 function mapNotification(row: NotificationRow): CopulaNotification {

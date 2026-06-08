@@ -578,6 +578,7 @@ export function App() {
             setViewerTarget({ communityId: selectedCommunity.id, albumId, itemId });
           }}
           onOpenDDay={() => setModal({ type: "dday" })}
+          onSetContentModules={actions.setCommunityContentModules}
           onEditNotice={openEditNotice}
           onEditEvent={openEditEvent}
           onEditAlbum={openEditAlbum}

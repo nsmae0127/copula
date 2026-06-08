@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type PointerEvent } from "react";
+import { lazy, Suspense, useMemo, useState, type CSSProperties, type FormEvent, type PointerEvent } from "react";
 import {
   CalendarDays,
   CheckCircle2,
@@ -39,7 +39,10 @@ import {
   MemberRow,
   SectionTitle
 } from "../components/ui";
-import { OneSecondModule } from "./OneSecondModule";
+
+const OneSecondModule = lazy(() =>
+  import("./OneSecondModule").then((module) => ({ default: module.OneSecondModule }))
+);
 
 interface CommunityScreenProps {
   communities: Community[];
@@ -59,6 +62,7 @@ interface CommunityScreenProps {
   onOpenAlbumItem: (albumId: string) => void;
   onOpenAlbumItemDetail: (albumId: string, itemId: string) => void;
   onOpenDDay: () => void;
+  onSetContentModules: (communityId: string, modules: CommunityModule[]) => Promise<void> | void;
   onEditNotice: (noticeId: string) => void;
   onEditEvent: (eventId: string) => void;
   onEditAlbum: (albumId: string) => void;
@@ -110,7 +114,6 @@ interface FutureContentDefinition {
   eyebrow: string;
 }
 
-const CONTENT_STORAGE_KEY = "copula.react.enabledContentModules.v1";
 const CORE_CONTENT_MODULES: CoreContentModule[] = ["feed", "members"];
 const OPTIONAL_CONTENT_MODULES: OptionalContentModule[] = ["calendar", "commitments", "relationships", "albums", "1s"];
 
@@ -197,6 +200,7 @@ export function CommunityScreen({
   onOpenAlbumItem,
   onOpenAlbumItemDetail,
   onOpenDDay,
+  onSetContentModules,
   onEditNotice,
   onEditEvent,
   onEditAlbum,
@@ -221,12 +225,8 @@ export function CommunityScreen({
   onDeleteOneSecondLog,
   onAddMergedVlogToAlbum
 }: CommunityScreenProps) {
-  const [enabledContentMap, setEnabledContentMap] = useState<Record<string, OptionalContentModule[]>>(() => readEnabledContentMap());
   const [isContentManagerOpen, setIsContentManagerOpen] = useState(false);
-
-  useEffect(() => {
-    persistEnabledContentMap(enabledContentMap);
-  }, [enabledContentMap]);
+  const [pendingContentModule, setPendingContentModule] = useState<OptionalContentModule | null>(null);
 
   if (!rawCommunity) {
     return (
@@ -251,28 +251,25 @@ export function CommunityScreen({
     ddays: rawCommunity.ddays || [],
     notices: rawCommunity.notices || [],
     oneSecondLogs: rawCommunity.oneSecondLogs || [],
+    contentModules: rawCommunity.contentModules || [],
   };
 
   const currentMember = community.members.find((member) => member.userId === currentUserId);
   const canManageContent = currentMember?.role === "owner" || currentMember?.role === "admin";
-  const enabledContentModules = getEnabledContentModules(community, enabledContentMap[community.id]);
+  const enabledContentModules = getEnabledContentModules(community);
   const activeOptionalModule = isOptionalContentModule(activeModule) ? activeModule : null;
   const activeModuleIsAvailable = activeOptionalModule ? enabledContentModules.includes(activeOptionalModule) : true;
 
-  function addContentModule(module: OptionalContentModule) {
+  async function addContentModule(module: OptionalContentModule) {
     if (!canManageContent) return;
-    setEnabledContentMap((current) => {
-      const existingModules = current[community.id] || [];
-      const nextModules = uniqueOptionalModules([...existingModules, module]);
-      if (nextModules.length === existingModules.length && nextModules.every((item, index) => item === existingModules[index])) {
-        return current;
-      }
-      return {
-        ...current,
-        [community.id]: nextModules
-      };
-    });
-    onModuleChange(module);
+    const nextModules = uniqueOptionalModules([...enabledContentModules, module]);
+    setPendingContentModule(module);
+    try {
+      await onSetContentModules(community.id, nextModules);
+      onModuleChange(module);
+    } finally {
+      setPendingContentModule(null);
+    }
   }
 
   function openContentManager() {
@@ -300,6 +297,7 @@ export function CommunityScreen({
             canManageContent={canManageContent}
             isContentManagerOpen={isContentManagerOpen}
             enabledContentModules={enabledContentModules}
+            pendingContentModule={pendingContentModule}
             onModuleChange={onModuleChange}
             onToggleContentManager={openContentManager}
             onAddContentModule={addContentModule}
@@ -385,22 +383,45 @@ export function CommunityScreen({
         />
       ) : null}
       {activeModuleIsAvailable && activeModule === "1s" ? (
-        <OneSecondModule
-          community={community}
-          currentUserId={currentUserId}
-          onOpenOneSecondUpload={onOpenOneSecondUpload}
-          onDeleteOneSecondLog={onDeleteOneSecondLog}
-          onAddMergedVlogToAlbum={(dateKey, videoFile) => onAddMergedVlogToAlbum(community.id, dateKey, videoFile)}
-        />
+        <Suspense fallback={<ModuleLoading label="1s Vlog" />}>
+          <OneSecondModule
+            community={community}
+            currentUserId={currentUserId}
+            onOpenOneSecondUpload={onOpenOneSecondUpload}
+            onDeleteOneSecondLog={onDeleteOneSecondLog}
+            onAddMergedVlogToAlbum={(dateKey, videoFile) => onAddMergedVlogToAlbum(community.id, dateKey, videoFile)}
+          />
+        </Suspense>
       ) : null}
       {!activeModuleIsAvailable && activeOptionalModule ? (
         <ContentUnavailablePanel
           module={activeOptionalModule}
           canManageContent={canManageContent}
+          pending={pendingContentModule === activeOptionalModule}
           onAddContentModule={addContentModule}
         />
       ) : null}
     </>
+  );
+}
+
+function ModuleLoading({ label }: { label: string }) {
+  return (
+    <section className="section">
+      <EmptyState icon={RefreshCw} title={`${label} 불러오는 중`} body="잠시만 기다려 주세요." />
+    </section>
+  );
+}
+
+function isStarterCommunity(community: Community) {
+  return (
+    community.events.length === 0 &&
+    community.albums.length === 0 &&
+    community.ddays.length === 0 &&
+    community.pairs.length === 0 &&
+    community.circles.length === 0 &&
+    community.commitments.length === 0 &&
+    community.oneSecondLogs.length === 0
   );
 }
 
@@ -591,6 +612,7 @@ function CommunityHomePanel({
   canManageContent,
   isContentManagerOpen,
   enabledContentModules,
+  pendingContentModule,
   onModuleChange,
   onToggleContentManager,
   onAddContentModule,
@@ -606,6 +628,7 @@ function CommunityHomePanel({
   canManageContent: boolean;
   isContentManagerOpen: boolean;
   enabledContentModules: OptionalContentModule[];
+  pendingContentModule: OptionalContentModule | null;
   onModuleChange: (module: CommunityModule) => void;
   onToggleContentManager: () => void;
   onAddContentModule: (module: OptionalContentModule) => void;
@@ -623,6 +646,7 @@ function CommunityHomePanel({
   const todaysVlogCount = (community.oneSecondLogs || []).filter((log) => isSameDate(log.createdAt, new Date())).length;
   const latestAlbum = [...community.albums]
     .sort((a, b) => new Date(getLatestAlbumItem(b)?.createdAt ?? b.createdAt).getTime() - new Date(getLatestAlbumItem(a)?.createdAt ?? a.createdAt).getTime())[0];
+  const isStarter = isStarterCommunity(community);
 
   return (
     <section className="copula-home-panel" aria-label="copula 홈">
@@ -660,37 +684,56 @@ function CommunityHomePanel({
         </button>
       ) : null}
 
-      <div className="copula-today-grid" aria-label="오늘 요약">
-        <TodayMetricButton icon={CalendarDays} label="일정" value={todayScheduleCount} helper="오늘" onClick={() => onModuleChange("calendar")} />
-        <TodayMetricButton icon={ListTodo} label="할 일" value={openCommitmentCount} helper="진행" onClick={() => onModuleChange("commitments")} />
-        <TodayMetricButton icon={Video} label="1s" value={todaysVlogCount ? "완료" : "아직"} helper="오늘 기록" onClick={() => onModuleChange("1s")} />
-        <TodayMetricButton icon={Image} label="앨범" value={latestAlbum ? latestAlbum.title : "없음"} helper={latestAlbum ? `${latestAlbum.items.length}개` : "최근"} onClick={() => onModuleChange("albums")} />
-      </div>
+      {isStarter ? (
+        <CopulaStarterPanel
+          onOpenEvent={onOpenEvent}
+          onOpenAlbum={onOpenAlbum}
+          onOpenOneSecondUpload={onOpenOneSecondUpload}
+          onCopyInviteCode={onCopyInviteCode}
+        />
+      ) : (
+        <>
+          <div className="copula-today-grid" aria-label="오늘 요약">
+            <TodayMetricButton icon={CalendarDays} label="일정" value={todayScheduleCount} helper="오늘" onClick={() => onModuleChange("calendar")} />
+            <TodayMetricButton icon={ListTodo} label="할 일" value={openCommitmentCount} helper="진행" onClick={() => onModuleChange("commitments")} />
+            <TodayMetricButton
+              icon={Video}
+              label="오늘 1s"
+              value={todaysVlogCount ? "완료" : "미기록"}
+              helper={todaysVlogCount ? `${todaysVlogCount}개` : "탭해서 기록"}
+              tone={todaysVlogCount ? "done" : "missing"}
+              onClick={() => onModuleChange("1s")}
+            />
+            <TodayMetricButton icon={Image} label="앨범" value={latestAlbum ? latestAlbum.title : "없음"} helper={latestAlbum ? `${latestAlbum.items.length}개` : "최근"} onClick={() => onModuleChange("albums")} />
+          </div>
 
-      <div className="copula-action-row" aria-label="빠른 행동">
-        <button type="button" onClick={() => onOpenEvent()}>
-          <CalendarDays aria-hidden="true" />
-          <span>일정</span>
-        </button>
-        <button type="button" onClick={onOpenAlbum}>
-          <Image aria-hidden="true" />
-          <span>앨범</span>
-        </button>
-        <button type="button" onClick={onOpenOneSecondUpload}>
-          <Video aria-hidden="true" />
-          <span>1s</span>
-        </button>
-        <button type="button" onClick={onCopyInviteCode}>
-          <Users aria-hidden="true" />
-          <span>초대</span>
-        </button>
-      </div>
+          <div className="copula-action-row" aria-label="빠른 행동">
+            <button type="button" onClick={() => onOpenEvent()}>
+              <CalendarDays aria-hidden="true" />
+              <span>일정</span>
+            </button>
+            <button type="button" onClick={onOpenAlbum}>
+              <Image aria-hidden="true" />
+              <span>앨범</span>
+            </button>
+            <button type="button" onClick={onOpenOneSecondUpload}>
+              <Video aria-hidden="true" />
+              <span>오늘 1s</span>
+            </button>
+            <button type="button" onClick={onCopyInviteCode}>
+              <Users aria-hidden="true" />
+              <span>초대</span>
+            </button>
+          </div>
+        </>
+      )}
 
       {isContentManagerOpen ? (
         <CommunityContentDock
           community={community}
           canManageContent={canManageContent}
           enabledContentModules={enabledContentModules}
+          pendingContentModule={pendingContentModule}
           onModuleChange={onModuleChange}
           onAddContentModule={onAddContentModule}
         />
@@ -745,21 +788,63 @@ function TodayMetricButton({
   label,
   value,
   helper,
+  tone,
   onClick
 }: {
   icon: LucideIcon;
   label: string;
   value: number | string;
   helper: string;
+  tone?: "missing" | "done";
   onClick: () => void;
 }) {
   return (
-    <button type="button" className="today-metric-button" onClick={onClick}>
+    <button type="button" className={`today-metric-button ${tone ? `is-${tone}` : ""}`} onClick={onClick}>
       <Icon aria-hidden="true" />
       <span>{label}</span>
       <strong>{value}</strong>
       <small>{helper}</small>
     </button>
+  );
+}
+
+function CopulaStarterPanel({
+  onOpenEvent,
+  onOpenAlbum,
+  onOpenOneSecondUpload,
+  onCopyInviteCode
+}: {
+  onOpenEvent: (dateKey?: string) => void;
+  onOpenAlbum: () => void;
+  onOpenOneSecondUpload: () => void;
+  onCopyInviteCode: () => void;
+}) {
+  return (
+    <div className="copula-starter-panel">
+      <div className="copula-starter-head">
+        <span>기본 세팅</span>
+        <strong>필요한 콘텐츠부터 추가하세요</strong>
+      </div>
+      <div className="copula-starter-grid">
+        <button type="button" onClick={onCopyInviteCode}>
+          <Users aria-hidden="true" />
+          <span>초대</span>
+        </button>
+        <button type="button" onClick={() => onOpenEvent()}>
+          <CalendarDays aria-hidden="true" />
+          <span>일정</span>
+        </button>
+        <button type="button" onClick={onOpenAlbum}>
+          <Image aria-hidden="true" />
+          <span>앨범</span>
+        </button>
+        <button type="button" className="is-missing" onClick={onOpenOneSecondUpload}>
+          <Video aria-hidden="true" />
+          <span>오늘 1s</span>
+          <small>미기록</small>
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -798,14 +883,16 @@ function CommunityContentDock({
   community,
   canManageContent,
   enabledContentModules,
+  pendingContentModule,
   onModuleChange,
   onAddContentModule
 }: {
   community: Community;
   canManageContent: boolean;
   enabledContentModules: OptionalContentModule[];
+  pendingContentModule: OptionalContentModule | null;
   onModuleChange: (module: CommunityModule) => void;
-  onAddContentModule: (module: OptionalContentModule) => void;
+  onAddContentModule: (module: OptionalContentModule) => Promise<void> | void;
 }) {
   const enabledSet = new Set<CommunityModule>([...CORE_CONTENT_MODULES, ...enabledContentModules]);
   const activeDefinitions = [
@@ -851,9 +938,9 @@ function CommunityContentDock({
                 label={definition.label}
                 eyebrow={definition.eyebrow}
                 description={definition.description}
-                actionLabel={isEnabled ? "열기" : canManageContent ? "추가" : "관리자만"}
+                actionLabel={pendingContentModule === optionalModule ? "추가 중" : isEnabled ? "열기" : canManageContent ? "추가" : "관리자만"}
                 active={isEnabled}
-                disabled={!isEnabled && !canManageContent}
+                disabled={pendingContentModule === optionalModule || (!isEnabled && !canManageContent)}
                 onClick={() => {
                   if (isEnabled) {
                     onModuleChange(definition.module);
@@ -958,11 +1045,13 @@ function ContentCatalogCard({
 function ContentUnavailablePanel({
   module,
   canManageContent,
+  pending,
   onAddContentModule
 }: {
   module: OptionalContentModule;
   canManageContent: boolean;
-  onAddContentModule: (module: OptionalContentModule) => void;
+  pending: boolean;
+  onAddContentModule: (module: OptionalContentModule) => Promise<void> | void;
 }) {
   const definition = getContentModuleDefinition(module);
   const Icon = definition.icon;
@@ -978,43 +1067,12 @@ function ContentUnavailablePanel({
         <p>{canManageContent ? "필요한 copula에서만 추가해 사용할 수 있습니다." : "관리자가 이 콘텐츠를 추가하면 사용할 수 있습니다."}</p>
       </div>
       {canManageContent ? (
-        <button className="primary-button compact-button" type="button" onClick={() => onAddContentModule(module)}>
+        <button className="primary-button compact-button" type="button" onClick={() => onAddContentModule(module)} disabled={pending}>
           <Plus aria-hidden="true" />
-          콘텐츠 추가
+          {pending ? "추가 중" : "콘텐츠 추가"}
         </button>
       ) : null}
     </section>
-  );
-}
-
-function readEnabledContentMap(): Record<string, OptionalContentModule[]> {
-  if (typeof window === "undefined") return {};
-  try {
-    const rawValue = window.localStorage.getItem(CONTENT_STORAGE_KEY);
-    if (!rawValue) return {};
-    const parsedValue: unknown = JSON.parse(rawValue);
-    if (!parsedValue || typeof parsedValue !== "object" || Array.isArray(parsedValue)) return {};
-    return Object.entries(parsedValue).reduce<Record<string, OptionalContentModule[]>>((result, [communityId, modules]) => {
-      const normalizedModules = normalizeEnabledModules(modules);
-      if (normalizedModules.length) {
-        result[communityId] = normalizedModules;
-      }
-      return result;
-    }, {});
-  } catch {
-    return {};
-  }
-}
-
-function persistEnabledContentMap(map: Record<string, OptionalContentModule[]>) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(CONTENT_STORAGE_KEY, JSON.stringify(map));
-}
-
-function normalizeEnabledModules(modules: unknown): OptionalContentModule[] {
-  if (!Array.isArray(modules)) return [];
-  return uniqueOptionalModules(
-    modules.filter((module): module is OptionalContentModule => typeof module === "string" && isOptionalContentModule(module))
   );
 }
 
@@ -1023,9 +1081,9 @@ function uniqueOptionalModules(modules: readonly OptionalContentModule[]) {
   return OPTIONAL_CONTENT_MODULES.filter((module) => moduleSet.has(module));
 }
 
-function getEnabledContentModules(community: Community, savedModules: OptionalContentModule[] = []) {
+function getEnabledContentModules(community: Community) {
   const modulesWithContent = OPTIONAL_CONTENT_MODULES.filter((module) => hasExistingContent(community, module));
-  return uniqueOptionalModules([...savedModules, ...modulesWithContent]);
+  return uniqueOptionalModules([...(community.contentModules || []).filter(isOptionalContentModule), ...modulesWithContent]);
 }
 
 function isCoreContentModule(module: string): module is CoreContentModule {

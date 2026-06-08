@@ -53,6 +53,7 @@ export function seedState(): CopulaState {
     accent: "#f0717a",
     coverUrl: null,
     createdAt: addDays(-40),
+    contentModules: ["calendar", "commitments", "relationships", "albums"],
     members: weekendMembers,
     events: [
       {
@@ -202,6 +203,7 @@ export function inviteCatalog(): Record<string, Community> {
       accent: "#f6a8be",
       coverUrl: null,
       createdAt: addDays(-120),
+      contentModules: ["calendar"],
       members: [
         memberFromUser({ id: "user-mom", name: "Mom", handle: "@mom", initials: "MO" }, "owner", addDays(-120))
       ],
@@ -240,6 +242,7 @@ export function inviteCatalog(): Record<string, Community> {
       accent: "#8c74ba",
       coverUrl: null,
       createdAt: addDays(-15),
+      contentModules: ["calendar"],
       members: [],
       events: [
         {
@@ -276,6 +279,7 @@ export function inviteCatalog(): Record<string, Community> {
       accent: "#8c74ba",
       coverUrl: null,
       createdAt: addDays(-8),
+      contentModules: ["calendar"],
       members: [],
       events: [],
       albums: [],

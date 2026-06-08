@@ -26,6 +26,7 @@ import { createId, initials, makeInviteCode, memberFromUser } from "./utils";
 const accentColors = ["#F0717A", "#8C74BA", "#F6A8BE", "#FFD6C7", "#6FB7A5"];
 const repository = getCopulaRepository();
 const DAY_MS = 86_400_000;
+const STORED_COMMUNITY_CONTENT_MODULES: CommunityModule[] = ["calendar", "commitments", "relationships", "albums", "1s"];
 
 function createNotification(
   kind: NotificationKind,
@@ -86,10 +87,16 @@ function normalizeHandle(handle: string) {
 
 function normalizeCommunity(community: Community): Community {
   const persisted = community as Community & {
+    contentModules?: CommunityModule[];
     pairs?: RelationshipPair[];
     circles?: Circle[];
     commitments?: Commitment[];
     messages?: CommunityMessage[];
+    events?: CalendarEvent[];
+    albums?: Album[];
+    ddays?: DDayItem[];
+    notices?: Notice[];
+    oneSecondLogs?: Community["oneSecondLogs"];
   };
 
   const rawCommitments = Array.isArray(persisted.commitments) ? persisted.commitments : [];
@@ -100,11 +107,27 @@ function normalizeCommunity(community: Community): Community {
 
   return {
     ...community,
+    contentModules: normalizeCommunityContentModules(persisted.contentModules),
+    events: Array.isArray(persisted.events) ? persisted.events : [],
+    albums: Array.isArray(persisted.albums) ? persisted.albums : [],
+    ddays: Array.isArray(persisted.ddays) ? persisted.ddays : [],
+    notices: Array.isArray(persisted.notices) ? persisted.notices : [],
     pairs: Array.isArray(persisted.pairs) ? persisted.pairs : [],
     circles: Array.isArray(persisted.circles) ? persisted.circles : [],
     commitments,
-    messages: Array.isArray(persisted.messages) ? persisted.messages : []
+    messages: Array.isArray(persisted.messages) ? persisted.messages : [],
+    oneSecondLogs: Array.isArray(persisted.oneSecondLogs) ? persisted.oneSecondLogs : []
   };
+}
+
+function normalizeCommunityContentModules(modules: unknown): CommunityModule[] {
+  if (!Array.isArray(modules)) return [];
+  const moduleSet = new Set(
+    modules.filter((module): module is CommunityModule =>
+      typeof module === "string" && STORED_COMMUNITY_CONTENT_MODULES.includes(module as CommunityModule)
+    )
+  );
+  return STORED_COMMUNITY_CONTENT_MODULES.filter((module) => moduleSet.has(module));
 }
 
 function normalizeState(nextState: CopulaState, preferredSelectedCommunityId?: string | null): CopulaState {
@@ -576,6 +599,7 @@ export function useCopulaStore() {
         accent: accentColors[previous.communities.length % accentColors.length],
         coverUrl: null,
         createdAt: new Date().toISOString(),
+        contentModules: [],
         members: [memberFromUser(currentUser, "owner")],
         events: [],
         albums: [],
@@ -1862,6 +1886,21 @@ export function useCopulaStore() {
     await repository.savePushSubscription?.(subscription);
   }
 
+  async function setCommunityContentModules(communityId: string, modules: CommunityModule[]) {
+    const normalizedModules = normalizeCommunityContentModules(modules);
+    const savedModules = repository.setCommunityContentModules
+      ? await repository.setCommunityContentModules(communityId, normalizedModules)
+      : normalizedModules;
+    const nextModules = normalizeCommunityContentModules(savedModules);
+
+    setState((previous) =>
+      updateCommunity(previous, communityId, (community) => ({
+        ...community,
+        contentModules: nextModules
+      }))
+    );
+  }
+
   return {
     state,
     selectedCommunity,
@@ -1881,6 +1920,7 @@ export function useCopulaStore() {
       joinCommunity,
       createCommunity,
       updateCommunityProfile,
+      setCommunityContentModules,
       regenerateInviteCode,
       addNotice,
       addEvent,

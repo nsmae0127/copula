@@ -735,10 +735,6 @@ export function App() {
         onJoin={() => openJoinModal()}
         onCreateCommunity={() => setModal({ type: "community" })}
         onSelectCommunity={(communityId) => startViewTransition(() => openCommunity(communityId))}
-        notifications={state.notifications}
-        unreadNotificationCount={state.notifications.filter((item) => !item.read).length}
-        onMarkNotificationsRead={actions.markNotificationsRead}
-        onOpenNotification={openNotification}
         onOpenCommunityModule={(communityId, module) => startViewTransition(() => {
           if (module === "messages") {
             openMessages(communityId);
@@ -759,12 +755,14 @@ export function App() {
         activeView={activeView}
         selectedCommunity={selectedCommunity}
         unreadMessageCount={state.notifications.filter((item) => item.kind === "message" && !item.read).length}
+        unreadNotificationCount={state.notifications.filter((item) => !item.read).length}
         onViewChange={(view) => startViewTransition(() => {
           setActiveView(view);
           if (view === "messages") {
             setSelectedMessageCommunityId(null);
           }
         })}
+        onOpenNotifications={() => startViewTransition(() => setActiveView("notifications"))}
         onOpenJoin={() => openJoinModal()}
         onOpenCreateCommunity={() => setModal({ type: "community" })}
         onOpenQuickNotice={openQuickNotice}

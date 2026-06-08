@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import {
+  Bell,
   CalendarDays,
   Home,
   Image,
@@ -21,8 +22,10 @@ interface LayoutProps {
   activeView: ViewName;
   selectedCommunity: Community | null;
   unreadMessageCount: number;
+  unreadNotificationCount: number;
   children: ReactNode;
   onViewChange: (view: ViewName) => void;
+  onOpenNotifications: () => void;
   onOpenJoin: () => void;
   onOpenCreateCommunity: () => void;
   onOpenQuickNotice: () => void;
@@ -36,8 +39,10 @@ export function Layout({
   activeView,
   selectedCommunity,
   unreadMessageCount,
+  unreadNotificationCount,
   children,
   onViewChange,
+  onOpenNotifications,
   onOpenJoin,
   onOpenCreateCommunity,
   onOpenQuickNotice,
@@ -79,6 +84,7 @@ export function Layout({
   return (
     <div className="app-shell">
       <header className="topbar">
+        <div className="topbar-side" aria-hidden="true" />
         <div className="brand">
           <div className="brand-mark">
             <img src="/assets/logo-mark-96.png" alt="" aria-hidden="true" />
@@ -89,8 +95,27 @@ export function Layout({
           </div>
         </div>
         <div className="top-actions">
+          {activeView === "home" ? (
+            <button
+              className="topbar-notification-button"
+              type="button"
+              onClick={() => {
+                playTapSound();
+                setIsPlusMenuOpen(false);
+                onOpenNotifications();
+              }}
+              aria-label={`알림 ${unreadNotificationCount}개`}
+              title="알림"
+            >
+              <Bell aria-hidden="true" />
+              {unreadNotificationCount > 0 ? (
+                <span className="topbar-notification-badge">
+                  {unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}
+                </span>
+              ) : null}
+            </button>
+          ) : null}
         </div>
-
       </header>
 
       <main className="screen">{children}</main>

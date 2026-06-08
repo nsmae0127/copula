@@ -1,8 +1,6 @@
 import { useState, type ReactNode } from "react";
 import {
-  Bell,
   CalendarDays,
-  Check,
   Clock,
   Flag,
   Handshake,
@@ -12,12 +10,10 @@ import {
   Megaphone,
   Plus,
   Flame,
-  Sparkles,
-  X
 } from "lucide-react";
-import type { Community, CommunityModule, CopulaNotification, CopulaState, VisibilityScope } from "../types";
+import type { Community, CommunityModule, CopulaState, VisibilityScope } from "../types";
 import { daysUntil, startOfToday, calculateUserStreak, getAlbumCoverItem, getLatestAlbumItem } from "../utils";
-import { EmptyState, NotificationRow } from "../components/ui";
+import { EmptyState } from "../components/ui";
 import { OneSecondPlayerOverlay } from "../components/OneSecondPlayerOverlay";
 
 interface HomeScreenProps {
@@ -25,10 +21,6 @@ interface HomeScreenProps {
   onJoin: () => void;
   onCreateCommunity: () => void;
   onSelectCommunity: (communityId: string) => void;
-  notifications: CopulaNotification[];
-  unreadNotificationCount: number;
-  onMarkNotificationsRead: () => void;
-  onOpenNotification: (notification: CopulaNotification) => void;
   onOpenCommunityModule: (communityId: string, module: CommunityModule) => void;
   onOpenAlbumCommunity: (communityId: string, albumId?: string) => void;
   onOpenOneSecondUpload?: () => void;
@@ -50,10 +42,6 @@ export function HomeScreen({
   onJoin,
   onCreateCommunity,
   onSelectCommunity,
-  notifications,
-  unreadNotificationCount,
-  onMarkNotificationsRead,
-  onOpenNotification,
   onOpenCommunityModule,
   onOpenAlbumCommunity,
   onOpenOneSecondUpload,
@@ -65,19 +53,10 @@ export function HomeScreen({
   const todayKey = toDateKey(new Date());
 
   const [activeStoryCommunity, setActiveStoryCommunity] = useState<Community | null>(null);
-  const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false);
-  const recentNotifications = notifications.slice(0, 20);
 
   // 몰입 모드 및 다이내믹 무드 조명 상태
   const [focusMode, setFocusMode] = useState(false);
   const [activeAccent, setActiveAccent] = useState("#8c74ba");
-
-  // 1초 일기 오늘자 업로드 여부 판별 (참여 중인 모든 커뮤니티 중 하나라도 올렸는지)
-  const hasUploadedToday = state.communities.some((community) =>
-    (community.oneSecondLogs || []).some(
-      (log) => log.userId === currentUserId && toDateKey(new Date(log.createdAt)) === todayKey
-    )
-  );
 
   // 피드 데이터 추출 및 변환
   const allFeedItems: FeedItem[] = hasCommunities ? [
@@ -174,87 +153,6 @@ export function HomeScreen({
       onDoubleClick={() => setFocusMode((prev) => !prev)}
       title="화면 빈 곳을 더블 클릭하여 몰입 모드(Focus Mode) 토글"
     >
-      <section className="hero-panel hero-panel-compact">
-        <div className="hero-glow-1" />
-        <div className="hero-glow-2" />
-        <div className="home-hero-row">
-          <div className="page-head">
-            <h1>반가워요, {state.currentUser?.name ?? "멤버"}님!</h1>
-            <p className="muted">
-              소중한 관계(copula)들의 소식을 피드에서 한눈에 확인하고 넘겨보세요.
-            </p>
-          </div>
-          <button
-            className="home-notification-button"
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              setIsNotificationPanelOpen(true);
-            }}
-            aria-label={`알림 ${unreadNotificationCount}개`}
-            title="알림"
-          >
-            <Bell aria-hidden="true" />
-            {unreadNotificationCount > 0 ? (
-              <span className="home-notification-badge">
-                {unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}
-              </span>
-            ) : null}
-          </button>
-        </div>
-      </section>
-
-      {isNotificationPanelOpen ? (
-        <>
-          <div className="home-notification-backdrop" onClick={() => setIsNotificationPanelOpen(false)} />
-          <section className="home-notification-sheet" role="dialog" aria-modal="true" aria-label="알림 내역">
-            <div className="home-notification-head">
-              <div>
-                <h2>알림</h2>
-                <span>{unreadNotificationCount > 0 ? `읽지 않음 ${unreadNotificationCount}개` : "모두 확인했습니다"}</span>
-              </div>
-              <div className="home-notification-actions">
-                <button
-                  className="icon-button compact"
-                  type="button"
-                  onClick={onMarkNotificationsRead}
-                  disabled={notifications.every((item) => item.read)}
-                  aria-label="모두 읽음"
-                  title="모두 읽음"
-                >
-                  <Check aria-hidden="true" />
-                </button>
-                <button
-                  className="icon-button compact"
-                  type="button"
-                  onClick={() => setIsNotificationPanelOpen(false)}
-                  aria-label="알림 닫기"
-                  title="닫기"
-                >
-                  <X aria-hidden="true" />
-                </button>
-              </div>
-            </div>
-            <div className="home-notification-list">
-              {recentNotifications.length ? (
-                recentNotifications.map((item) => (
-                  <NotificationRow
-                    key={item.id}
-                    item={item}
-                    onClick={() => {
-                      onOpenNotification(item);
-                      setIsNotificationPanelOpen(false);
-                    }}
-                  />
-                ))
-              ) : (
-                <EmptyState icon={Bell} title="알림이 없습니다" body="새로운 소식이 생기면 이곳에 표시됩니다." />
-              )}
-            </div>
-          </section>
-        </>
-      ) : null}
-
       {!hasCommunities ? (
         <section className="onboarding-panel card">
           <div>
@@ -292,6 +190,7 @@ export function HomeScreen({
                   (log) => toDateKey(new Date(log.createdAt)) === todayKey
                 );
                 const hasTodayVlog = todayLogs.length > 0;
+                const hasMyTodayLog = todayLogs.some((log) => log.userId === currentUserId);
                 const userStreak = calculateUserStreak(communityLogs, currentUserId);
                 const unreadMessages = unreadMessageCountForCommunity(state, community.id);
 
@@ -304,52 +203,50 @@ export function HomeScreen({
                 };
 
                 return (
-                  <button
-                    key={community.id}
-                    className={`story-button ${isActive ? "is-active" : ""} ${hasTodayVlog ? "has-today-vlog" : ""}`}
-                    onClick={handleStoryClick}
-                    title={hasTodayVlog ? "오늘의 1s Vlog 바로보기" : `${community.name} 이동`}
-                  >
-                    <div className="story-avatar-wrap">
-                      <div className="story-avatar">
-                        {initial}
+                  <div className="story-item" key={community.id}>
+                    <button
+                      className={`story-button ${isActive ? "is-active" : ""} ${hasTodayVlog ? "has-today-vlog" : ""} ${hasMyTodayLog ? "" : "needs-today-log"}`}
+                      onClick={handleStoryClick}
+                      title={hasTodayVlog ? "오늘의 1s Vlog 바로보기" : `${community.name} 이동`}
+                    >
+                      <div className="story-avatar-wrap">
+                        <div className="story-avatar">
+                          {initial}
+                        </div>
+                        {userStreak > 0 && (
+                          <div className="story-streak-badge" title={`연속 ${userStreak}일 작성`}>
+                            <Flame size={10} fill="currentColor" />
+                            <span>{userStreak}</span>
+                          </div>
+                        )}
+                        {unreadMessages > 0 ? (
+                          <div className="story-message-badge" title={`읽지 않은 메시지 ${unreadMessages}개`}>
+                            {unreadMessages > 9 ? "9+" : unreadMessages}
+                          </div>
+                        ) : null}
                       </div>
-                      {userStreak > 0 && (
-                        <div className="story-streak-badge" title={`연속 ${userStreak}일 작성`}>
-                          <Flame size={10} fill="currentColor" />
-                          <span>{userStreak}</span>
-                        </div>
-                      )}
-                      {unreadMessages > 0 ? (
-                        <div className="story-message-badge" title={`읽지 않은 메시지 ${unreadMessages}개`}>
-                          {unreadMessages > 9 ? "9+" : unreadMessages}
-                        </div>
-                      ) : null}
-                    </div>
-                    <span className="story-name">{community.name}</span>
-                  </button>
+                      <span className="story-name">{community.name}</span>
+                    </button>
+                    {!hasMyTodayLog ? (
+                      <button
+                        className="story-diary-missing-badge"
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onOpenOneSecondUpload?.();
+                        }}
+                        aria-label={`${community.name} 오늘의 1초 일기 기록하기`}
+                        title="오늘의 1초 일기 기록하기"
+                        disabled={!onOpenOneSecondUpload}
+                      >
+                        <Plus aria-hidden="true" />
+                      </button>
+                    ) : null}
+                  </div>
                 );
               })}
             </div>
           </section>
-
-          {/* 1s Vlog 스마트 리마인더 인앱 배너 */}
-          {!hasUploadedToday && onOpenOneSecondUpload && (
-            <div className="home-reminder-banner fade-in" onClick={onOpenOneSecondUpload}>
-              <div className="reminder-left">
-                <div className="reminder-icon-circle">
-                  <Sparkles size={16} />
-                </div>
-                <div className="reminder-text">
-                  <strong>오늘의 1초 일기가 아직 없습니다!</strong>
-                  <span>🔥 소중한 오늘의 순간을 기록하고 스트릭을 이어가세요.</span>
-                </div>
-              </div>
-              <button className="reminder-action-btn">
-                기록하기
-              </button>
-            </div>
-          )}
 
           {/* 인스타 피드 스냅 컨테이너 */}
           <section className="home-feed-section">

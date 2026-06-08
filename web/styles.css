@@ -1,4 +1,5 @@
 @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css");
+@import url("https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&display=swap");
 
 :root {
   color-scheme: light;
@@ -186,7 +187,7 @@ button:disabled {
   top: 0;
   z-index: 10;
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(44px, 1fr) auto minmax(44px, 1fr);
   gap: 12px;
   align-items: center;
   padding: 8px 0 13px;
@@ -196,11 +197,18 @@ button:disabled {
   animation: slide-down var(--motion-slow) var(--ease-out) both;
 }
 
+.topbar-side {
+  min-width: 44px;
+}
+
 .brand {
   display: flex;
   align-items: center;
+  justify-self: center;
+  justify-content: center;
   min-width: 0;
-  gap: 10px;
+  gap: 0;
+  text-align: center;
 }
 
 .brand > div:last-child {
@@ -208,7 +216,7 @@ button:disabled {
 }
 
 .brand-mark {
-  display: grid;
+  display: none;
   width: 44px;
   height: 44px;
   place-items: center;
@@ -237,9 +245,11 @@ button:disabled {
 .brand-title {
   display: block;
   overflow: hidden;
-  font-size: 1.02rem;
-  font-weight: 760;
-  line-height: 1.1;
+  color: var(--primary-ink);
+  font-family: "Gaegu", "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-size: 1.9rem;
+  font-weight: 700;
+  line-height: 0.95;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -248,19 +258,84 @@ button:disabled {
   display: block;
   overflow: hidden;
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: 0.72rem;
+  font-weight: 760;
   line-height: 1.2;
+  margin-top: 2px;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: center;
 }
 
 .top-actions {
   display: flex;
   gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  justify-self: end;
+  min-width: 44px;
 }
 
 .top-actions .icon-button {
   flex: 0 0 auto;
+}
+
+.topbar-notification-button {
+  position: fixed;
+  top: max(20px, calc(env(safe-area-inset-top) + 8px));
+  right: max(12px, calc((100vw - 980px) / 2));
+  z-index: 40;
+  display: inline-grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid rgba(212, 188, 229, 0.84);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.84);
+  color: var(--primary-ink);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(14px) saturate(1.12);
+  transition:
+    background var(--motion-fast) var(--ease-out),
+    box-shadow var(--motion-fast) var(--ease-out),
+    transform var(--motion-fast) var(--ease-out);
+}
+
+.topbar-notification-button:hover {
+  background: var(--surface);
+  box-shadow: 0 12px 24px rgba(92, 70, 130, 0.12);
+  transform: translateY(-1px);
+}
+
+.topbar-notification-button svg {
+  width: 19px;
+  height: 19px;
+  stroke-width: 2.5;
+}
+
+.topbar-notification-badge {
+  position: absolute;
+  top: -3px;
+  right: -2px;
+  display: inline-grid;
+  min-width: 18px;
+  height: 18px;
+  place-items: center;
+  border: 2px solid white;
+  border-radius: 999px;
+  background: var(--brand-coral);
+  color: white;
+  padding: 0 4px;
+  font-size: 0.64rem;
+  font-weight: 900;
+  line-height: 1;
+  animation: badge-pop 220ms var(--ease-spring) both;
+}
+
+@media (max-width: 600px) {
+  .topbar-notification-button {
+    right: max(12px, calc(100vw - 376px));
+  }
 }
 
 .screen {
@@ -5359,7 +5434,7 @@ select:focus {
 
 /* 1. Stories Scroll Bar */
 .home-stories-section {
-  margin: 16px 0 8px;
+  margin: 8px 0 8px;
   overflow: hidden;
 }
 
@@ -5367,12 +5442,18 @@ select:focus {
   display: flex;
   gap: 16px;
   overflow-x: auto;
-  padding: 8px 4px;
+  padding: 10px 4px 8px;
   scrollbar-width: none; /* Firefox */
 }
 
 .stories-scroll-container::-webkit-scrollbar {
   display: none; /* Safari, Chrome */
+}
+
+.story-item {
+  position: relative;
+  width: 68px;
+  flex: 0 0 68px;
 }
 
 .story-button {
@@ -5384,7 +5465,7 @@ select:focus {
   background: transparent;
   padding: 0;
   cursor: pointer;
-  width: 68px;
+  width: 100%;
   flex-shrink: 0;
 }
 
@@ -5403,6 +5484,19 @@ select:focus {
 .story-button.is-active .story-avatar-wrap {
   background: var(--brand-gradient);
   transform: scale(1.05);
+}
+
+.story-button.needs-today-log .story-avatar-wrap {
+  background:
+    linear-gradient(var(--surface), var(--surface)) padding-box,
+    repeating-linear-gradient(135deg, var(--line-strong) 0 6px, transparent 6px 11px) border-box;
+  border: 2px solid transparent;
+  padding: 0;
+}
+
+.story-button.needs-today-log.has-today-vlog .story-avatar-wrap {
+  border: 0;
+  padding: 2.2px;
 }
 
 .story-avatar {
@@ -5442,6 +5536,41 @@ select:focus {
   font-weight: 800;
 }
 
+.story-diary-missing-badge {
+  position: absolute;
+  right: 4px;
+  bottom: 19px;
+  z-index: 2;
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  background: var(--brand-coral);
+  color: white;
+  box-shadow: 0 8px 16px rgba(240, 113, 122, 0.24);
+  transition:
+    transform var(--motion-fast) var(--ease-out),
+    box-shadow var(--motion-fast) var(--ease-out);
+}
+
+.story-diary-missing-badge svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: 3;
+}
+
+.story-diary-missing-badge:hover {
+  transform: scale(1.06);
+  box-shadow: 0 10px 18px rgba(240, 113, 122, 0.32);
+}
+
+.story-diary-missing-badge:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
 /* 2. Feed Scroller with Snap */
 .home-feed-section {
   width: 100%;
@@ -5452,7 +5581,7 @@ select:focus {
   display: flex;
   flex-direction: column;
   gap: 20px;
-  height: calc(100svh - 250px);
+  height: calc(100svh - 186px);
   overflow-y: auto;
   scroll-snap-type: y mandatory;
   padding-bottom: 80px;

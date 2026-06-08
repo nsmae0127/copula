@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties, type FormEvent, type PointerEvent } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type PointerEvent } from "react";
 import {
   CalendarDays,
   CheckCircle2,
@@ -22,7 +22,8 @@ import {
   UserMinus,
   UserRound,
   Users,
-  Video
+  Video,
+  Wallet
 } from "lucide-react";
 import { getKoreanHoliday } from "../holidays";
 import type { Album, CalendarEvent, Community, CommunityModule, Role, VisibilityScope, OneSecondLog } from "../types";
@@ -90,6 +91,95 @@ interface CommunityScreenProps {
   onAddMergedVlogToAlbum: (communityId: string, dateKey: string, videoFile: File) => Promise<void> | void;
 }
 
+type CoreContentModule = "feed" | "members";
+type OptionalContentModule = Exclude<CommunityModule, CoreContentModule | "messages">;
+type FutureContentId = "budget";
+
+interface ContentModuleDefinition {
+  module: CoreContentModule | OptionalContentModule;
+  icon: LucideIcon;
+  label: string;
+  description: string;
+  eyebrow: string;
+}
+
+interface FutureContentDefinition {
+  id: FutureContentId;
+  icon: LucideIcon;
+  label: string;
+  description: string;
+  eyebrow: string;
+}
+
+const CONTENT_STORAGE_KEY = "copula.react.enabledContentModules.v1";
+const CORE_CONTENT_MODULES: CoreContentModule[] = ["feed", "members"];
+const OPTIONAL_CONTENT_MODULES: OptionalContentModule[] = ["calendar", "commitments", "relationships", "albums", "1s"];
+
+const CORE_CONTENT_DEFINITIONS: ContentModuleDefinition[] = [
+  {
+    module: "feed",
+    icon: Megaphone,
+    label: "피드",
+    eyebrow: "기본",
+    description: "공지와 중요한 활동을 한눈에 봅니다."
+  },
+  {
+    module: "members",
+    icon: Users,
+    label: "멤버",
+    eyebrow: "기본",
+    description: "초대, 역할, 멤버 관리를 담당합니다."
+  }
+];
+
+const OPTIONAL_CONTENT_DEFINITIONS: ContentModuleDefinition[] = [
+  {
+    module: "calendar",
+    icon: CalendarDays,
+    label: "일정",
+    eyebrow: "생활",
+    description: "약속, D-Day, 날짜별 1s 기록을 관리합니다."
+  },
+  {
+    module: "commitments",
+    icon: ListTodo,
+    label: "할 일",
+    eyebrow: "협업",
+    description: "멤버별 담당과 마감이 있는 일을 정리합니다."
+  },
+  {
+    module: "relationships",
+    icon: Network,
+    label: "관계",
+    eyebrow: "구성",
+    description: "1:1 관계와 그룹별 약속 범위를 만듭니다."
+  },
+  {
+    module: "albums",
+    icon: Image,
+    label: "앨범",
+    eyebrow: "기록",
+    description: "사진, 영상, 메모를 copula별로 모읍니다."
+  },
+  {
+    module: "1s",
+    icon: Video,
+    label: "1s Vlog",
+    eyebrow: "일상",
+    description: "오늘의 1초 영상을 모아 하루를 남깁니다."
+  }
+];
+
+const FUTURE_CONTENT_DEFINITIONS: FutureContentDefinition[] = [
+  {
+    id: "budget",
+    icon: Wallet,
+    label: "가계부",
+    eyebrow: "준비 중",
+    description: "공동 지출, 정산, 월별 예산을 함께 관리합니다."
+  }
+];
+
 export function CommunityScreen({
   communities,
   community: rawCommunity,
@@ -132,6 +222,12 @@ export function CommunityScreen({
   onDeleteOneSecondLog,
   onAddMergedVlogToAlbum
 }: CommunityScreenProps) {
+  const [enabledContentMap, setEnabledContentMap] = useState<Record<string, OptionalContentModule[]>>(() => readEnabledContentMap());
+
+  useEffect(() => {
+    persistEnabledContentMap(enabledContentMap);
+  }, [enabledContentMap]);
+
   if (!rawCommunity) {
     return (
       <section className="section">
@@ -159,6 +255,25 @@ export function CommunityScreen({
 
   const currentMember = community.members.find((member) => member.userId === currentUserId);
   const canManageContent = currentMember?.role === "owner" || currentMember?.role === "admin";
+  const enabledContentModules = getEnabledContentModules(community, enabledContentMap[community.id]);
+  const activeOptionalModule = isOptionalContentModule(activeModule) ? activeModule : null;
+  const activeModuleIsAvailable = activeOptionalModule ? enabledContentModules.includes(activeOptionalModule) : true;
+
+  function addContentModule(module: OptionalContentModule) {
+    if (!canManageContent) return;
+    setEnabledContentMap((current) => {
+      const existingModules = current[community.id] || [];
+      const nextModules = uniqueOptionalModules([...existingModules, module]);
+      if (nextModules.length === existingModules.length && nextModules.every((item, index) => item === existingModules[index])) {
+        return current;
+      }
+      return {
+        ...current,
+        [community.id]: nextModules
+      };
+    });
+    onModuleChange(module);
+  }
 
   return (
     <>
@@ -171,6 +286,15 @@ export function CommunityScreen({
         onCopyInviteCode={onCopyInviteCode}
       />
 
+      <CommunityContentDock
+        community={community}
+        activeModule={activeModule}
+        canManageContent={canManageContent}
+        enabledContentModules={enabledContentModules}
+        onModuleChange={onModuleChange}
+        onAddContentModule={addContentModule}
+      />
+
       <CommunityNoticePanel
         community={community}
         canManageContent={canManageContent}
@@ -179,23 +303,13 @@ export function CommunityScreen({
         onDeleteNotice={onDeleteNotice}
       />
 
-      <section className="module-tabs" aria-label="copula 모듈">
-        <ModuleTab active={activeModule === "feed"} icon={Megaphone} label="피드" onClick={() => onModuleChange("feed")} />
-        <ModuleTab active={activeModule === "1s"} icon={Video} label="1s Vlog" onClick={() => onModuleChange("1s")} />
-        <ModuleTab active={activeModule === "calendar"} icon={CalendarDays} label="일정" onClick={() => onModuleChange("calendar")} />
-        <ModuleTab active={activeModule === "commitments"} icon={ListTodo} label="할 일" onClick={() => onModuleChange("commitments")} />
-        <ModuleTab active={activeModule === "relationships"} icon={Network} label="관계" onClick={() => onModuleChange("relationships")} />
-        <ModuleTab active={activeModule === "albums"} icon={Image} label="앨범" onClick={() => onModuleChange("albums")} />
-        <ModuleTab active={activeModule === "members"} icon={Users} label="멤버" onClick={() => onModuleChange("members")} />
-      </section>
-
       {activeModule === "feed" ? (
         <FeedModule
           community={community}
           onModuleChange={onModuleChange}
         />
       ) : null}
-      {activeModule === "calendar" ? (
+      {activeModuleIsAvailable && activeModule === "calendar" ? (
         <CalendarModule
           community={community}
           canManageContent={canManageContent}
@@ -210,7 +324,7 @@ export function CommunityScreen({
           onAddMergedVlogToAlbum={onAddMergedVlogToAlbum}
         />
       ) : null}
-      {activeModule === "commitments" ? (
+      {activeModuleIsAvailable && activeModule === "commitments" ? (
         <CommitmentsModule
           community={community}
           currentUserId={currentUserId}
@@ -219,7 +333,7 @@ export function CommunityScreen({
           onDeleteCommitment={onDeleteCommitment}
         />
       ) : null}
-      {activeModule === "relationships" ? (
+      {activeModuleIsAvailable && activeModule === "relationships" ? (
         <RelationshipsModule
           community={community}
           currentUserId={currentUserId}
@@ -229,7 +343,7 @@ export function CommunityScreen({
           onModuleChange={onModuleChange}
         />
       ) : null}
-      {activeModule === "albums" ? (
+      {activeModuleIsAvailable && activeModule === "albums" ? (
         <AlbumModule
           community={community}
           selectedAlbumId={selectedAlbumId}
@@ -255,13 +369,20 @@ export function CommunityScreen({
           onModuleChange={onModuleChange}
         />
       ) : null}
-      {activeModule === "1s" ? (
+      {activeModuleIsAvailable && activeModule === "1s" ? (
         <OneSecondModule
           community={community}
           currentUserId={currentUserId}
           onOpenOneSecondUpload={onOpenOneSecondUpload}
           onDeleteOneSecondLog={onDeleteOneSecondLog}
           onAddMergedVlogToAlbum={(dateKey, videoFile) => onAddMergedVlogToAlbum(community.id, dateKey, videoFile)}
+        />
+      ) : null}
+      {!activeModuleIsAvailable && activeOptionalModule ? (
+        <ContentUnavailablePanel
+          module={activeOptionalModule}
+          canManageContent={canManageContent}
+          onAddContentModule={addContentModule}
         />
       ) : null}
     </>
@@ -450,34 +571,302 @@ function CommunityHeroCard({
   );
 }
 
-function ModuleTab({
+function CommunityContentDock({
+  community,
+  activeModule,
+  canManageContent,
+  enabledContentModules,
+  onModuleChange,
+  onAddContentModule
+}: {
+  community: Community;
+  activeModule: CommunityModule;
+  canManageContent: boolean;
+  enabledContentModules: OptionalContentModule[];
+  onModuleChange: (module: CommunityModule) => void;
+  onAddContentModule: (module: OptionalContentModule) => void;
+}) {
+  const [isCatalogOpen, setIsCatalogOpen] = useState(false);
+  const enabledSet = new Set<CommunityModule>([...CORE_CONTENT_MODULES, ...enabledContentModules]);
+  const activeDefinitions = [
+    ...CORE_CONTENT_DEFINITIONS,
+    ...OPTIONAL_CONTENT_DEFINITIONS.filter((definition) => enabledContentModules.includes(definition.module as OptionalContentModule))
+  ];
+
+  return (
+    <section className="content-dock" aria-label="copula 콘텐츠">
+      <div className="content-dock-head">
+        <div className="content-dock-title">
+          <span>콘텐츠</span>
+          <strong>기본 {CORE_CONTENT_MODULES.length}개 · 사용 중 {activeDefinitions.length}개</strong>
+        </div>
+        <button
+          type="button"
+          className={`secondary-button compact-button content-dock-add-button ${isCatalogOpen ? "is-active" : ""}`}
+          onClick={() => setIsCatalogOpen((current) => !current)}
+          aria-expanded={isCatalogOpen}
+        >
+          <Plus aria-hidden="true" />
+          추가
+        </button>
+      </div>
+
+      <div className="content-active-grid">
+        {activeDefinitions.map((definition) => (
+          <ContentActiveButton
+            key={definition.module}
+            definition={definition}
+            active={activeModule === definition.module}
+            count={getContentModuleCount(community, definition.module)}
+            isCore={isCoreContentModule(definition.module)}
+            onClick={() => onModuleChange(definition.module)}
+          />
+        ))}
+      </div>
+
+      {isCatalogOpen ? (
+        <div className="content-catalog-panel">
+          <div className="content-catalog-head">
+            <span>추가 콘텐츠</span>
+            <strong>{canManageContent ? "copula에 맞춰 켜기" : "관리자만 추가 가능"}</strong>
+          </div>
+          <div className="content-catalog-grid">
+            {OPTIONAL_CONTENT_DEFINITIONS.map((definition) => {
+              const isEnabled = enabledSet.has(definition.module);
+              const optionalModule = definition.module as OptionalContentModule;
+              return (
+                <ContentCatalogCard
+                  key={definition.module}
+                  icon={definition.icon}
+                  label={definition.label}
+                  eyebrow={definition.eyebrow}
+                  description={definition.description}
+                  actionLabel={isEnabled ? "사용 중" : canManageContent ? "추가" : "관리자만"}
+                  active={isEnabled}
+                  disabled={!isEnabled && !canManageContent}
+                  onClick={() => {
+                    if (isEnabled) {
+                      onModuleChange(definition.module);
+                      return;
+                    }
+                    onAddContentModule(optionalModule);
+                  }}
+                />
+              );
+            })}
+            {FUTURE_CONTENT_DEFINITIONS.map((definition) => (
+              <ContentCatalogCard
+                key={definition.id}
+                icon={definition.icon}
+                label={definition.label}
+                eyebrow={definition.eyebrow}
+                description={definition.description}
+                actionLabel="준비 중"
+                disabled
+              />
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function ContentActiveButton({
+  definition,
   active,
-  icon: Icon,
-  label,
-  badge = 0,
+  count,
+  isCore,
   onClick
 }: {
+  definition: ContentModuleDefinition;
   active: boolean;
+  count: number;
+  isCore: boolean;
+  onClick: () => void;
+}) {
+  const Icon = definition.icon;
+  return (
+    <button
+      type="button"
+      className={`content-active-card ${active ? "is-active" : ""}`}
+      onClick={onClick}
+      aria-pressed={active}
+      title={definition.label}
+    >
+      <span className="content-module-icon">
+        <Icon aria-hidden="true" />
+      </span>
+      <span className="content-module-copy">
+        <strong>{definition.label}</strong>
+        <small>{isCore ? "기본" : definition.eyebrow}</small>
+      </span>
+      <span className="content-module-count">{formatContentModuleCount(count)}</span>
+    </button>
+  );
+}
+
+function ContentCatalogCard({
+  icon: Icon,
+  label,
+  eyebrow,
+  description,
+  actionLabel,
+  active = false,
+  disabled = false,
+  onClick
+}: {
   icon: LucideIcon;
   label: string;
-  badge?: number;
-  onClick: () => void;
+  eyebrow: string;
+  description: string;
+  actionLabel: string;
+  active?: boolean;
+  disabled?: boolean;
+  onClick?: () => void;
 }) {
   return (
     <button
-      className={`tab ${active ? "is-active" : ""}`}
+      type="button"
+      className={`content-catalog-card ${active ? "is-active" : ""}`}
       onClick={onClick}
-      aria-label={label}
-      aria-pressed={active}
-      title={label}
+      disabled={disabled}
+      aria-label={`${label} ${actionLabel}`}
     >
-      <span className="tab-icon-wrap">
+      <span className="content-catalog-icon">
         <Icon aria-hidden="true" />
-        {badge > 0 ? <span className="tab-badge">{badge > 9 ? "9+" : badge}</span> : null}
       </span>
-      <span>{label}</span>
+      <span className="content-catalog-main">
+        <small>{eyebrow}</small>
+        <strong>{label}</strong>
+        <span>{description}</span>
+      </span>
+      <span className="content-catalog-action">{actionLabel}</span>
     </button>
   );
+}
+
+function ContentUnavailablePanel({
+  module,
+  canManageContent,
+  onAddContentModule
+}: {
+  module: OptionalContentModule;
+  canManageContent: boolean;
+  onAddContentModule: (module: OptionalContentModule) => void;
+}) {
+  const definition = getContentModuleDefinition(module);
+  const Icon = definition.icon;
+
+  return (
+    <section className="content-unavailable-panel">
+      <span className="content-unavailable-icon">
+        <Icon aria-hidden="true" />
+      </span>
+      <div>
+        <span>{definition.eyebrow}</span>
+        <h2>{definition.label} 콘텐츠가 아직 없습니다</h2>
+        <p>{canManageContent ? "필요한 copula에서만 추가해 사용할 수 있습니다." : "관리자가 이 콘텐츠를 추가하면 사용할 수 있습니다."}</p>
+      </div>
+      {canManageContent ? (
+        <button className="primary-button compact-button" type="button" onClick={() => onAddContentModule(module)}>
+          <Plus aria-hidden="true" />
+          콘텐츠 추가
+        </button>
+      ) : null}
+    </section>
+  );
+}
+
+function readEnabledContentMap(): Record<string, OptionalContentModule[]> {
+  if (typeof window === "undefined") return {};
+  try {
+    const rawValue = window.localStorage.getItem(CONTENT_STORAGE_KEY);
+    if (!rawValue) return {};
+    const parsedValue: unknown = JSON.parse(rawValue);
+    if (!parsedValue || typeof parsedValue !== "object" || Array.isArray(parsedValue)) return {};
+    return Object.entries(parsedValue).reduce<Record<string, OptionalContentModule[]>>((result, [communityId, modules]) => {
+      const normalizedModules = normalizeEnabledModules(modules);
+      if (normalizedModules.length) {
+        result[communityId] = normalizedModules;
+      }
+      return result;
+    }, {});
+  } catch {
+    return {};
+  }
+}
+
+function persistEnabledContentMap(map: Record<string, OptionalContentModule[]>) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(CONTENT_STORAGE_KEY, JSON.stringify(map));
+}
+
+function normalizeEnabledModules(modules: unknown): OptionalContentModule[] {
+  if (!Array.isArray(modules)) return [];
+  return uniqueOptionalModules(
+    modules.filter((module): module is OptionalContentModule => typeof module === "string" && isOptionalContentModule(module))
+  );
+}
+
+function uniqueOptionalModules(modules: readonly OptionalContentModule[]) {
+  const moduleSet = new Set(modules);
+  return OPTIONAL_CONTENT_MODULES.filter((module) => moduleSet.has(module));
+}
+
+function getEnabledContentModules(community: Community, savedModules: OptionalContentModule[] = []) {
+  const modulesWithContent = OPTIONAL_CONTENT_MODULES.filter((module) => hasExistingContent(community, module));
+  return uniqueOptionalModules([...savedModules, ...modulesWithContent]);
+}
+
+function isCoreContentModule(module: string): module is CoreContentModule {
+  return (CORE_CONTENT_MODULES as readonly string[]).includes(module);
+}
+
+function isOptionalContentModule(module: string): module is OptionalContentModule {
+  return (OPTIONAL_CONTENT_MODULES as readonly string[]).includes(module);
+}
+
+function hasExistingContent(community: Community, module: OptionalContentModule) {
+  switch (module) {
+    case "calendar":
+      return community.events.length > 0 || community.ddays.length > 0;
+    case "commitments":
+      return community.commitments.length > 0;
+    case "relationships":
+      return community.pairs.length > 0 || community.circles.length > 0;
+    case "albums":
+      return community.albums.length > 0;
+    case "1s":
+      return community.oneSecondLogs.length > 0;
+  }
+}
+
+function getContentModuleCount(community: Community, module: CoreContentModule | OptionalContentModule) {
+  switch (module) {
+    case "feed":
+      return buildCopulaContentItems(community).length;
+    case "members":
+      return community.members.length;
+    case "calendar":
+      return community.events.length + community.ddays.length;
+    case "commitments":
+      return community.commitments.length;
+    case "relationships":
+      return community.pairs.length + community.circles.length;
+    case "albums":
+      return community.albums.length;
+    case "1s":
+      return community.oneSecondLogs.length;
+  }
+}
+
+function formatContentModuleCount(count: number) {
+  return count > 99 ? "99+" : String(count);
+}
+
+function getContentModuleDefinition(module: CoreContentModule | OptionalContentModule) {
+  return [...CORE_CONTENT_DEFINITIONS, ...OPTIONAL_CONTENT_DEFINITIONS].find((definition) => definition.module === module) || CORE_CONTENT_DEFINITIONS[0];
 }
 
 function CommunityNoticePanel({

@@ -341,11 +341,14 @@ button:disabled {
 .screen {
   display: grid;
   gap: 16px;
+  width: 100%;
+  min-width: 0;
   max-width: 980px;
   margin: 0 auto;
 }
 
 .screen > * {
+  min-width: 0;
   animation: fade-rise var(--motion-slow) var(--ease-out) both;
 }
 
@@ -1917,6 +1920,336 @@ select:focus-visible {
   width: 18px;
   height: 18px;
   color: var(--brand-coral-ink);
+}
+
+.content-dock {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  margin-top: -2px;
+}
+
+.content-dock-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.content-dock-title {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.content-dock-title span,
+.content-catalog-head span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.content-dock-title strong,
+.content-catalog-head strong {
+  color: var(--text);
+  font-size: 0.94rem;
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.content-dock-add-button {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 0 12px;
+}
+
+.content-dock-add-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.content-dock-add-button.is-active {
+  border-color: color-mix(in srgb, var(--primary) 34%, var(--line));
+  background: color-mix(in srgb, var(--primary) 9%, white);
+  color: var(--primary-ink);
+}
+
+.content-active-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.content-active-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 54px;
+  min-width: 0;
+  border: 1px solid rgba(223, 209, 220, 0.86);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 248, 250, 0.82)),
+    var(--glass);
+  color: var(--text);
+  padding: 9px 10px;
+  text-align: left;
+  box-shadow: var(--shadow-card);
+  transition:
+    border-color var(--motion-fast) var(--ease-out),
+    background var(--motion-fast) var(--ease-out),
+    box-shadow var(--motion-fast) var(--ease-out),
+    transform var(--motion-fast) var(--ease-out);
+}
+
+.content-active-card:hover {
+  transform: translateY(-1px);
+}
+
+.content-active-card.is-active {
+  border-color: color-mix(in srgb, var(--primary) 42%, var(--line));
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--primary) 12%, white), rgba(255, 255, 255, 0.94)),
+    var(--surface);
+  box-shadow: 0 14px 30px rgba(240, 113, 122, 0.13);
+}
+
+.content-module-icon,
+.content-catalog-icon,
+.content-unavailable-icon {
+  display: inline-grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--icon-surface);
+  color: var(--primary-ink);
+}
+
+.content-module-icon {
+  width: 30px;
+  height: 30px;
+}
+
+.content-module-icon svg,
+.content-catalog-icon svg,
+.content-unavailable-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.content-module-copy {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.content-module-copy strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.84rem;
+  font-weight: 900;
+}
+
+.content-module-copy small {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.content-module-count {
+  display: inline-grid;
+  min-width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.76);
+  color: var(--primary-ink);
+  padding: 0 6px;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.content-catalog-panel {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  border: 1px solid rgba(223, 209, 220, 0.78);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.58);
+  padding: 10px;
+}
+
+.content-catalog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.content-catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(174px, 1fr));
+  gap: 8px;
+}
+
+.content-catalog-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 9px;
+  min-height: 98px;
+  border: 1px solid rgba(223, 209, 220, 0.76);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--text);
+  padding: 10px;
+  text-align: left;
+  transition:
+    border-color var(--motion-fast) var(--ease-out),
+    background var(--motion-fast) var(--ease-out),
+    transform var(--motion-fast) var(--ease-out);
+}
+
+.content-catalog-card:not(:disabled):hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--line));
+}
+
+.content-catalog-card:disabled {
+  cursor: default;
+  opacity: 0.62;
+}
+
+.content-catalog-card.is-active {
+  border-color: color-mix(in srgb, var(--primary) 36%, var(--line));
+  background: color-mix(in srgb, var(--primary) 7%, white);
+}
+
+.content-catalog-icon {
+  width: 32px;
+  height: 32px;
+}
+
+.content-catalog-main {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.content-catalog-main small {
+  color: var(--primary-ink);
+  font-size: 0.66rem;
+  font-weight: 900;
+}
+
+.content-catalog-main strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.88rem;
+  font-weight: 900;
+}
+
+.content-catalog-main span {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.content-catalog-action {
+  grid-column: 1 / -1;
+  justify-self: start;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.76);
+  color: var(--primary-ink);
+  padding: 5px 9px;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.content-unavailable-panel {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px dashed color-mix(in srgb, var(--primary) 28%, var(--line));
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.86), rgba(255, 248, 250, 0.72)),
+    var(--glass);
+  padding: 14px;
+}
+
+.content-unavailable-icon {
+  width: 42px;
+  height: 42px;
+}
+
+.content-unavailable-icon svg {
+  width: 21px;
+  height: 21px;
+}
+
+.content-unavailable-panel div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.content-unavailable-panel span {
+  color: var(--primary-ink);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.content-unavailable-panel h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.content-unavailable-panel p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 760;
+  line-height: 1.45;
+}
+
+.content-unavailable-panel .primary-button {
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .content-catalog-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .content-unavailable-panel {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .content-unavailable-panel .primary-button {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+}
+
+@media (min-width: 760px) {
+  .content-active-grid {
+    grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  }
 }
 
 .copula-overview-strip {
@@ -4916,6 +5249,10 @@ select:focus {
 
 :root.dark-theme .module-tabs,
 :root.dark-theme .tabs,
+:root.dark-theme .content-active-card,
+:root.dark-theme .content-catalog-card,
+:root.dark-theme .content-catalog-panel,
+:root.dark-theme .content-unavailable-panel,
 :root.dark-theme .copula-overview-strip button,
 :root.dark-theme .copula-content-item,
 :root.dark-theme .copula-filter-row button,
@@ -6836,6 +7173,10 @@ body.dark-theme .settings-row-btn:hover {
 :root:not(.dark-theme) .conversation-card,
 :root:not(.dark-theme) .copula-content-item,
 :root:not(.dark-theme) .copula-overview-strip button,
+:root:not(.dark-theme) .content-active-card,
+:root:not(.dark-theme) .content-catalog-card,
+:root:not(.dark-theme) .content-catalog-panel,
+:root:not(.dark-theme) .content-unavailable-panel,
 :root:not(.dark-theme) .module-tabs,
 :root:not(.dark-theme) .community-notice-list .row,
 :root:not(.dark-theme) .home-reminder-banner,
@@ -6988,6 +7329,10 @@ body.dark-theme .settings-row-btn:hover {
 :root:not(.dark-theme) .conversation-card,
 :root:not(.dark-theme) .copula-content-item,
 :root:not(.dark-theme) .copula-overview-strip button,
+:root:not(.dark-theme) .content-active-card,
+:root:not(.dark-theme) .content-catalog-card,
+:root:not(.dark-theme) .content-catalog-panel,
+:root:not(.dark-theme) .content-unavailable-panel,
 :root:not(.dark-theme) .module-tabs,
 :root:not(.dark-theme) .community-notice-list .row,
 :root:not(.dark-theme) .home-reminder-banner,

@@ -1,13 +1,13 @@
 import { useState, type ReactNode } from "react";
 import {
   CalendarDays,
-  Clock,
   Flag,
   Handshake,
   Image,
   KeyRound,
   ListTodo,
   Megaphone,
+  MoreHorizontal,
   Plus,
   Flame,
 } from "lucide-react";
@@ -33,6 +33,7 @@ interface FeedItem {
   community: Community;
   title: string;
   dateLabel: string;
+  postedAt: string;
   sortDate: Date;
   data: any;
 }
@@ -72,6 +73,7 @@ export function HomeScreen({
           community,
           title: commitment.title,
           dateLabel: formatDue(commitment.dueAt),
+          postedAt: commitment.createdAt,
           sortDate: new Date(commitment.dueAt),
           data: commitment
         }));
@@ -87,6 +89,7 @@ export function HomeScreen({
           community,
           title: event.title,
           dateLabel: new Date(event.startsAt).toLocaleDateString("ko-KR", { month: "short", day: "numeric", weekday: "short" }),
+          postedAt: event.createdAt,
           sortDate: new Date(event.startsAt),
           data: event
         }));
@@ -100,6 +103,7 @@ export function HomeScreen({
         community,
         title: dday.title,
         dateLabel: formatDue(dday.targetDate),
+        postedAt: community.createdAt,
         sortDate: new Date(dday.targetDate),
         data: dday
       }));
@@ -116,6 +120,7 @@ export function HomeScreen({
           community,
           title: album.title,
           dateLabel: new Date(activityDate).toLocaleDateString("ko-KR", { month: "short", day: "numeric" }),
+          postedAt: activityDate,
           sortDate: new Date(activityDate),
           data: album
         };
@@ -133,6 +138,7 @@ export function HomeScreen({
           community,
           title: notice.title,
           dateLabel: notice.pinned ? "고정 공지" : formatRelativeDate(notice.createdAt),
+          postedAt: notice.createdAt,
           sortDate: new Date(notice.createdAt),
           data: notice
         }));
@@ -306,7 +312,7 @@ function renderFeedCard(
   onOpenCommunityModule: (communityId: string, module: CommunityModule) => void,
   onOpenAlbumCommunity: (communityId: string, albumId?: string) => void
 ) {
-  const { community, type, dateLabel, title, data } = item;
+  const { community, type, dateLabel, postedAt, title, data } = item;
   const initial = community.name.charAt(0).toUpperCase();
   const albumCoverItem = type === "album" ? getAlbumCoverItem(data) : null;
   const albumItemCount = type === "album" && Array.isArray(data.items) ? data.items.length : 0;
@@ -362,16 +368,23 @@ function renderFeedCard(
       <header className="feed-card-header">
         <div className="feed-card-community">
           <div className="community-avatar-mini">
-            {initial}
+            {community.coverUrl ? <img src={community.coverUrl} alt="" /> : initial}
           </div>
           <div className="community-meta">
-            <span className="community-name">{community.name}</span>
-            <span className="feed-card-date">{dateLabel}</span>
+            <span className="community-name-line">
+              <span className="community-name">{community.name}</span>
+              <span className="feed-card-time">({formatElapsedShort(postedAt)})</span>
+            </span>
           </div>
         </div>
-        <span className={`feed-badge ${badgeClass}`}>
-          {icon}
-          {badgeText}
+        <span className="feed-card-actions">
+          <span className={`feed-badge ${badgeClass}`}>
+            {icon}
+            {badgeText}
+          </span>
+          <button className="feed-more-button" type="button" onClick={handleCardClick} aria-label="자세히 보기">
+            <MoreHorizontal aria-hidden="true" />
+          </button>
         </span>
       </header>
 
@@ -383,7 +396,7 @@ function renderFeedCard(
             </div>
             <h3>{title}</h3>
             <span className="commitment-scope">
-              공개 범위: {describeVisibility(community, data.visibility)}
+              마감: {dateLabel} · 공개 범위: {describeVisibility(community, data.visibility)}
             </span>
             {data.description && <p className="commitment-desc">{data.description}</p>}
           </div>
@@ -453,13 +466,6 @@ function renderFeedCard(
           </div>
         )}
       </div>
-
-      <footer className="feed-card-footer">
-        <button className="feed-action-btn" onClick={handleCardClick}>
-          자세히 보기
-          <Clock size={13} />
-        </button>
-      </footer>
     </article>
   );
 }
@@ -497,6 +503,23 @@ function formatRelativeDate(value: string) {
   const diffHours = Math.floor(diffMinutes / 60);
   if (diffHours < 24) return `${diffHours}시간 전`;
   return date.toLocaleDateString("ko-KR", { month: "short", day: "numeric" });
+}
+
+function formatElapsedShort(value: string) {
+  const date = new Date(value);
+  const diffMs = Math.max(0, Date.now() - date.getTime());
+  const diffMinutes = Math.floor(diffMs / 60000);
+  if (diffMinutes < 1) return "now";
+  if (diffMinutes < 60) return `${diffMinutes}m`;
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}d`;
+  const diffWeeks = Math.floor(diffDays / 7);
+  if (diffWeeks < 5) return `${diffWeeks}w`;
+  const diffMonths = Math.floor(diffDays / 30);
+  if (diffMonths < 12) return `${diffMonths}mo`;
+  return `${Math.floor(diffDays / 365)}y`;
 }
 
 function unreadMessageCountForCommunity(state: CopulaState, communityId: string) {

@@ -5053,6 +5053,25 @@ select:focus-visible {
   place-items: center;
 }
 
+.nav-label {
+  display: none;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 0 3px;
+  font-size: 0.76rem;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-item.is-active .nav-icon-wrap {
+  display: none;
+}
+
+.nav-item.is-active .nav-label {
+  display: block;
+}
+
 .nav-badge {
   position: absolute;
   top: -7px;
@@ -8288,4 +8307,57 @@ body.dark-theme .settings-row-btn:hover {
   :root:not(.dark-theme) .home-notification-list .row-main span {
     font-size: 0.76rem;
   }
+}
+
+/* X-style home feed: no card box, only top/bottom separators between posts. */
+.home-feed-container {
+  gap: 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.home-feed-card-snap-wrapper {
+  padding: 0;
+}
+
+.home-feed-card-snap-wrapper + .home-feed-card-snap-wrapper {
+  border-top: 1px solid var(--line);
+}
+
+.feed-card,
+.feed-card:has(.feed-content-dday),
+.feed-card:has(.feed-content-event),
+:root.dark-theme .feed-card,
+:root:not(.dark-theme) .feed-card,
+:root:not(.dark-theme) .feed-card:has(.feed-content-dday),
+:root:not(.dark-theme) .feed-card:has(.feed-content-event) {
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+  transform: none;
+}
+
+.feed-card:hover,
+.feed-card:has(.feed-content-event):hover,
+:root:not(.dark-theme) .feed-card:hover,
+:root:not(.dark-theme) .feed-card:has(.feed-content-event):hover {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--surface) 58%, transparent);
+  box-shadow: none;
+  transform: none;
+}
+
+.feed-card:has(.feed-content-event)::before,
+:root:not(.dark-theme) .feed-card:has(.feed-content-event)::before {
+  content: none;
+}
+
+.feed-card-header,
+.feed-card-footer,
+:root:not(.dark-theme) .feed-card-footer {
+  border-color: var(--line);
+  background: transparent;
 }

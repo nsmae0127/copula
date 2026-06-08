@@ -117,6 +117,7 @@ export function Layout({
         {/* 홈 */}
         <button
           className={`nav-item ${activeView === "home" ? "is-active" : ""}`}
+          aria-label="홈"
           onClick={() => {
             playTapSound();
             setIsPlusMenuOpen(false);
@@ -125,12 +126,13 @@ export function Layout({
           aria-current={activeView === "home" ? "page" : undefined}
         >
           <span className="nav-icon-wrap"><Home aria-hidden="true" /></span>
-          <span>홈</span>
+          <span className="nav-label">Home</span>
         </button>
 
         {/* Copula */}
         <button
           className={`nav-item ${activeView === "community" ? "is-active" : ""}`}
+          aria-label="Copula"
           onClick={() => {
             playTapSound();
             setIsPlusMenuOpen(false);
@@ -139,7 +141,7 @@ export function Layout({
           aria-current={activeView === "community" ? "page" : undefined}
         >
           <span className="nav-icon-wrap"><Users aria-hidden="true" /></span>
-          <span>Copula</span>
+          <span className="nav-label">Copula</span>
         </button>
 
         {/* + (Plus Button) */}
@@ -259,6 +261,7 @@ export function Layout({
         {/* 메시지 */}
         <button
           className={`nav-item ${activeView === "messages" ? "is-active" : ""}`}
+          aria-label="메시지"
           onClick={() => {
             playTapSound();
             setIsPlusMenuOpen(false);
@@ -272,12 +275,13 @@ export function Layout({
               <span className="nav-red-dot" aria-label={`${unreadMessageCount}개 읽지 않은 메시지`} />
             ) : null}
           </span>
-          <span>메시지</span>
+          <span className="nav-label">메시지</span>
         </button>
 
         {/* 계정 */}
         <button
           className={`nav-item ${activeView === "profile" ? "is-active" : ""}`}
+          aria-label="계정"
           onClick={() => {
             playTapSound();
             setIsPlusMenuOpen(false);
@@ -286,7 +290,7 @@ export function Layout({
           aria-current={activeView === "profile" ? "page" : undefined}
         >
           <span className="nav-icon-wrap"><UserRound aria-hidden="true" /></span>
-          <span>계정</span>
+          <span className="nav-label">계정</span>
         </button>
       </nav>
     </div>

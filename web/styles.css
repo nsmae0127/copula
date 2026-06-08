@@ -1880,46 +1880,283 @@ select:focus-visible {
   background: var(--accent, var(--primary));
 }
 
-.community-notice-panel {
+.copula-home-panel {
   display: grid;
-  gap: 8px;
-  margin-top: -4px;
+  gap: 12px;
+  min-width: 0;
 }
 
-.community-notice-panel .section-title h2 {
-  font-size: 0.98rem;
-}
-
-.community-notice-list {
-  display: grid;
-  gap: 8px;
-}
-
-.community-notice-list .row {
-  min-height: 58px;
-  padding: 10px 12px;
-}
-
-.notice-empty-action {
+.copula-home-head {
   display: flex;
   align-items: center;
-  gap: 9px;
-  width: 100%;
-  min-height: 50px;
-  border: 1px dashed rgba(238, 227, 232, 0.94);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.58);
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.copula-home-head > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.copula-home-head span {
   color: var(--muted);
-  padding: 10px 12px;
-  font-size: 0.86rem;
+  font-size: 0.72rem;
   font-weight: 850;
+}
+
+.copula-home-head h2 {
+  overflow: hidden;
+  margin: 0;
+  color: var(--ink);
+  font-size: 1.05rem;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copula-home-head .icon-button {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+}
+
+.copula-home-head .icon-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.copula-notice-preview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid rgba(238, 227, 232, 0.92);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.66);
+  padding: 8px;
+}
+
+.copula-notice-preview.is-empty {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-height: 48px;
+  color: var(--muted);
   text-align: left;
 }
 
-.notice-empty-action svg {
+.copula-notice-preview.is-empty svg {
   width: 18px;
   height: 18px;
-  color: var(--brand-coral-ink);
+  color: var(--primary-ink);
+}
+
+.copula-notice-main {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  text-align: left;
+}
+
+.copula-notice-icon {
+  display: inline-grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--icon-surface);
+  color: var(--primary-ink);
+}
+
+.copula-notice-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.copula-notice-main span:last-child {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.copula-notice-main small {
+  color: var(--primary-ink);
+  font-size: 0.68rem;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.copula-notice-main strong,
+.copula-notice-main em {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copula-notice-main strong {
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 900;
+}
+
+.copula-notice-main em {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-style: normal;
+  font-weight: 760;
+}
+
+.copula-notice-actions {
+  display: flex;
+  gap: 5px;
+}
+
+.copula-today-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.today-metric-button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
+  align-items: center;
+  column-gap: 7px;
+  row-gap: 1px;
+  min-width: 0;
+  min-height: 78px;
+  border: 1px solid rgba(238, 227, 232, 0.92);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.74);
+  color: var(--ink);
+  padding: 10px;
+  text-align: left;
+  transition:
+    border-color var(--motion-fast) var(--ease-out),
+    box-shadow var(--motion-fast) var(--ease-out),
+    transform var(--motion-fast) var(--ease-out);
+}
+
+.today-metric-button:hover {
+  border-color: color-mix(in srgb, var(--primary) 24%, var(--line));
+  box-shadow: 0 8px 18px rgba(140, 116, 186, 0.08);
+  transform: translateY(-1px);
+}
+
+.today-metric-button svg {
+  grid-row: 1 / 4;
+  width: 18px;
+  height: 18px;
+  color: var(--brand-pink);
+}
+
+.today-metric-button span,
+.today-metric-button small {
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.today-metric-button span {
+  font-size: 0.68rem;
+  font-weight: 850;
+}
+
+.today-metric-button strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 0.96rem;
+  font-weight: 900;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.today-metric-button small {
+  font-size: 0.66rem;
+  font-weight: 760;
+}
+
+.copula-action-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.copula-action-row button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 38px;
+  border: 1px solid rgba(238, 227, 232, 0.92);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.66);
+  color: var(--primary-ink);
+  padding: 0 9px;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.copula-action-row button svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+
+.copula-action-row button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.community-module-bar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  border: 1px solid rgba(223, 209, 220, 0.78);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.86), rgba(255, 248, 250, 0.72)),
+    var(--glass);
+  padding: 8px;
+  box-shadow: var(--shadow-card);
+}
+
+.community-module-bar > div {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 900;
+}
+
+.community-module-bar > div svg {
+  width: 17px;
+  height: 17px;
+  color: var(--primary-ink);
+}
+
+.community-module-bar strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .content-dock {
@@ -1927,6 +2164,13 @@ select:focus-visible {
   gap: 10px;
   min-width: 0;
   margin-top: -2px;
+}
+
+.content-dock.is-manager {
+  border: 1px solid rgba(223, 209, 220, 0.78);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.54);
+  padding: 10px;
 }
 
 .content-dock-head {
@@ -2232,6 +2476,18 @@ select:focus-visible {
 }
 
 @media (max-width: 480px) {
+  .copula-today-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .copula-action-row {
+    gap: 6px;
+  }
+
+  .copula-action-row button {
+    padding: 0 7px;
+  }
+
   .content-catalog-grid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -5360,6 +5616,10 @@ select:focus {
 
 :root.dark-theme .module-tabs,
 :root.dark-theme .tabs,
+:root.dark-theme .copula-notice-preview,
+:root.dark-theme .today-metric-button,
+:root.dark-theme .copula-action-row button,
+:root.dark-theme .community-module-bar,
 :root.dark-theme .content-active-card,
 :root.dark-theme .content-catalog-card,
 :root.dark-theme .content-catalog-panel,
@@ -7284,6 +7544,10 @@ body.dark-theme .settings-row-btn:hover {
 :root:not(.dark-theme) .conversation-card,
 :root:not(.dark-theme) .copula-content-item,
 :root:not(.dark-theme) .copula-overview-strip button,
+:root:not(.dark-theme) .copula-notice-preview,
+:root:not(.dark-theme) .today-metric-button,
+:root:not(.dark-theme) .copula-action-row button,
+:root:not(.dark-theme) .community-module-bar,
 :root:not(.dark-theme) .content-active-card,
 :root:not(.dark-theme) .content-catalog-card,
 :root:not(.dark-theme) .content-catalog-panel,
@@ -7440,6 +7704,10 @@ body.dark-theme .settings-row-btn:hover {
 :root:not(.dark-theme) .conversation-card,
 :root:not(.dark-theme) .copula-content-item,
 :root:not(.dark-theme) .copula-overview-strip button,
+:root:not(.dark-theme) .copula-notice-preview,
+:root:not(.dark-theme) .today-metric-button,
+:root:not(.dark-theme) .copula-action-row button,
+:root:not(.dark-theme) .community-module-bar,
 :root:not(.dark-theme) .content-active-card,
 :root:not(.dark-theme) .content-catalog-card,
 :root:not(.dark-theme) .content-catalog-panel,
@@ -7466,8 +7734,7 @@ body.dark-theme .settings-row-btn:hover {
   background: #FFFFFF !important;
 }
 
-:root:not(.dark-theme) .copula-filter-row button,
-:root:not(.dark-theme) .notice-empty-action {
+:root:not(.dark-theme) .copula-filter-row button {
   border-color: rgba(212, 188, 229, 0.9);
   background: #FFFFFF;
 }

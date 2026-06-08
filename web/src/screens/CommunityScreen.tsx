@@ -37,7 +37,6 @@ import {
   EmptyState,
   EventRow,
   MemberRow,
-  NoticeRow,
   SectionTitle
 } from "../components/ui";
 import { OneSecondModule } from "./OneSecondModule";
@@ -223,6 +222,7 @@ export function CommunityScreen({
   onAddMergedVlogToAlbum
 }: CommunityScreenProps) {
   const [enabledContentMap, setEnabledContentMap] = useState<Record<string, OptionalContentModule[]>>(() => readEnabledContentMap());
+  const [isContentManagerOpen, setIsContentManagerOpen] = useState(false);
 
   useEffect(() => {
     persistEnabledContentMap(enabledContentMap);
@@ -275,6 +275,13 @@ export function CommunityScreen({
     onModuleChange(module);
   }
 
+  function openContentManager() {
+    setIsContentManagerOpen((current) => !current);
+    if (activeModule !== "feed") {
+      onModuleChange("feed");
+    }
+  }
+
   return (
     <>
       <CommunityHeroStack
@@ -286,27 +293,35 @@ export function CommunityScreen({
         onCopyInviteCode={onCopyInviteCode}
       />
 
-      <CommunityContentDock
-        community={community}
-        activeModule={activeModule}
-        canManageContent={canManageContent}
-        enabledContentModules={enabledContentModules}
-        onModuleChange={onModuleChange}
-        onAddContentModule={addContentModule}
-      />
-
-      <CommunityNoticePanel
-        community={community}
-        canManageContent={canManageContent}
-        onOpenNotice={onOpenNotice}
-        onEditNotice={onEditNotice}
-        onDeleteNotice={onDeleteNotice}
-      />
-
       {activeModule === "feed" ? (
-        <FeedModule
-          community={community}
-          onModuleChange={onModuleChange}
+        <>
+          <CommunityHomePanel
+            community={community}
+            canManageContent={canManageContent}
+            isContentManagerOpen={isContentManagerOpen}
+            enabledContentModules={enabledContentModules}
+            onModuleChange={onModuleChange}
+            onToggleContentManager={openContentManager}
+            onAddContentModule={addContentModule}
+            onOpenNotice={onOpenNotice}
+            onOpenEvent={onOpenEvent}
+            onOpenAlbum={onOpenAlbum}
+            onOpenOneSecondUpload={onOpenOneSecondUpload}
+            onCopyInviteCode={onCopyInviteCode}
+            onEditNotice={onEditNotice}
+            onDeleteNotice={onDeleteNotice}
+          />
+          <FeedModule
+            community={community}
+            onModuleChange={onModuleChange}
+          />
+        </>
+      ) : null}
+      {activeModule !== "feed" ? (
+        <CommunityModuleBar
+          module={activeModule}
+          onBack={() => onModuleChange("feed")}
+          onManageContent={openContentManager}
         />
       ) : null}
       {activeModuleIsAvailable && activeModule === "calendar" ? (
@@ -571,22 +586,227 @@ function CommunityHeroCard({
   );
 }
 
+function CommunityHomePanel({
+  community,
+  canManageContent,
+  isContentManagerOpen,
+  enabledContentModules,
+  onModuleChange,
+  onToggleContentManager,
+  onAddContentModule,
+  onOpenNotice,
+  onOpenEvent,
+  onOpenAlbum,
+  onOpenOneSecondUpload,
+  onCopyInviteCode,
+  onEditNotice,
+  onDeleteNotice
+}: {
+  community: Community;
+  canManageContent: boolean;
+  isContentManagerOpen: boolean;
+  enabledContentModules: OptionalContentModule[];
+  onModuleChange: (module: CommunityModule) => void;
+  onToggleContentManager: () => void;
+  onAddContentModule: (module: OptionalContentModule) => void;
+  onOpenNotice: () => void;
+  onOpenEvent: (dateKey?: string) => void;
+  onOpenAlbum: () => void;
+  onOpenOneSecondUpload: () => void;
+  onCopyInviteCode: () => void;
+  onEditNotice: (noticeId: string) => void;
+  onDeleteNotice: (noticeId: string) => void;
+}) {
+  const primaryNotice = sortNotices(community.notices)[0];
+  const todayScheduleCount = countTodayScheduleItems(community);
+  const openCommitmentCount = community.commitments.filter((item) => item.status === "open").length;
+  const todaysVlogCount = (community.oneSecondLogs || []).filter((log) => isSameDate(log.createdAt, new Date())).length;
+  const latestAlbum = [...community.albums]
+    .sort((a, b) => new Date(getLatestAlbumItem(b)?.createdAt ?? b.createdAt).getTime() - new Date(getLatestAlbumItem(a)?.createdAt ?? a.createdAt).getTime())[0];
+
+  return (
+    <section className="copula-home-panel" aria-label="copula 홈">
+      <div className="copula-home-head">
+        <div>
+          <span>{community.members.length}명 함께</span>
+          <h2>오늘</h2>
+        </div>
+        <button
+          type="button"
+          className="icon-button compact"
+          onClick={onToggleContentManager}
+          aria-label="콘텐츠 관리"
+          title="콘텐츠 관리"
+          aria-expanded={isContentManagerOpen}
+        >
+          <Settings aria-hidden="true" />
+        </button>
+      </div>
+
+      {primaryNotice ? (
+        <NoticePreviewCard
+          community={community}
+          notice={primaryNotice}
+          canManageContent={canManageContent}
+          onOpenNotice={onOpenNotice}
+          onEditNotice={onEditNotice}
+          onDeleteNotice={onDeleteNotice}
+        />
+      ) : canManageContent ? (
+        <button className="copula-notice-preview is-empty" type="button" onClick={onOpenNotice}>
+          <Megaphone aria-hidden="true" />
+          <span>공지 작성</span>
+          <ChevronRight aria-hidden="true" />
+        </button>
+      ) : null}
+
+      <div className="copula-today-grid" aria-label="오늘 요약">
+        <TodayMetricButton icon={CalendarDays} label="일정" value={todayScheduleCount} helper="오늘" onClick={() => onModuleChange("calendar")} />
+        <TodayMetricButton icon={ListTodo} label="할 일" value={openCommitmentCount} helper="진행" onClick={() => onModuleChange("commitments")} />
+        <TodayMetricButton icon={Video} label="1s" value={todaysVlogCount ? "완료" : "아직"} helper="오늘 기록" onClick={() => onModuleChange("1s")} />
+        <TodayMetricButton icon={Image} label="앨범" value={latestAlbum ? latestAlbum.title : "없음"} helper={latestAlbum ? `${latestAlbum.items.length}개` : "최근"} onClick={() => onModuleChange("albums")} />
+      </div>
+
+      <div className="copula-action-row" aria-label="빠른 행동">
+        <button type="button" onClick={() => onOpenEvent()}>
+          <CalendarDays aria-hidden="true" />
+          <span>일정</span>
+        </button>
+        <button type="button" onClick={onOpenAlbum}>
+          <Image aria-hidden="true" />
+          <span>앨범</span>
+        </button>
+        <button type="button" onClick={onOpenOneSecondUpload}>
+          <Video aria-hidden="true" />
+          <span>1s</span>
+        </button>
+        <button type="button" onClick={onCopyInviteCode}>
+          <Users aria-hidden="true" />
+          <span>초대</span>
+        </button>
+      </div>
+
+      {isContentManagerOpen ? (
+        <CommunityContentDock
+          community={community}
+          canManageContent={canManageContent}
+          enabledContentModules={enabledContentModules}
+          onModuleChange={onModuleChange}
+          onAddContentModule={onAddContentModule}
+        />
+      ) : null}
+    </section>
+  );
+}
+
+function NoticePreviewCard({
+  community,
+  notice,
+  canManageContent,
+  onOpenNotice,
+  onEditNotice,
+  onDeleteNotice
+}: {
+  community: Community;
+  notice: Community["notices"][number];
+  canManageContent: boolean;
+  onOpenNotice: () => void;
+  onEditNotice: (noticeId: string) => void;
+  onDeleteNotice: (noticeId: string) => void;
+}) {
+  return (
+    <article className="copula-notice-preview" style={{ "--accent": community.accent } as CSSProperties}>
+      <button type="button" className="copula-notice-main" onClick={onOpenNotice}>
+        <span className="copula-notice-icon">
+          <Megaphone aria-hidden="true" />
+        </span>
+        <span>
+          <small>{notice.pinned ? "고정 공지" : "공지"}</small>
+          <strong>{notice.title}</strong>
+          <em>{notice.body}</em>
+        </span>
+      </button>
+      {canManageContent ? (
+        <span className="copula-notice-actions">
+          <button className="row-icon-button" type="button" onClick={() => onEditNotice(notice.id)} aria-label="공지 수정" title="공지 수정">
+            <Pencil aria-hidden="true" />
+          </button>
+          <button className="row-icon-button danger" type="button" onClick={() => onDeleteNotice(notice.id)} aria-label="공지 삭제" title="공지 삭제">
+            <Trash2 aria-hidden="true" />
+          </button>
+        </span>
+      ) : null}
+    </article>
+  );
+}
+
+function TodayMetricButton({
+  icon: Icon,
+  label,
+  value,
+  helper,
+  onClick
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: number | string;
+  helper: string;
+  onClick: () => void;
+}) {
+  return (
+    <button type="button" className="today-metric-button" onClick={onClick}>
+      <Icon aria-hidden="true" />
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <small>{helper}</small>
+    </button>
+  );
+}
+
+function CommunityModuleBar({
+  module,
+  onBack,
+  onManageContent
+}: {
+  module: CommunityModule;
+  onBack: () => void;
+  onManageContent: () => void;
+}) {
+  const definition = isCoreContentModule(module) || isOptionalContentModule(module)
+    ? getContentModuleDefinition(module)
+    : CORE_CONTENT_DEFINITIONS[0];
+  const Icon = definition.icon;
+
+  return (
+    <section className="community-module-bar" aria-label="copula 세부 화면">
+      <button type="button" className="secondary-button compact-button" onClick={onBack}>
+        <ChevronLeft aria-hidden="true" />
+        피드
+      </button>
+      <div>
+        <Icon aria-hidden="true" />
+        <strong>{definition.label}</strong>
+      </div>
+      <button type="button" className="icon-button compact" onClick={onManageContent} aria-label="콘텐츠 관리" title="콘텐츠 관리">
+        <Settings aria-hidden="true" />
+      </button>
+    </section>
+  );
+}
+
 function CommunityContentDock({
   community,
-  activeModule,
   canManageContent,
   enabledContentModules,
   onModuleChange,
   onAddContentModule
 }: {
   community: Community;
-  activeModule: CommunityModule;
   canManageContent: boolean;
   enabledContentModules: OptionalContentModule[];
   onModuleChange: (module: CommunityModule) => void;
   onAddContentModule: (module: OptionalContentModule) => void;
 }) {
-  const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const enabledSet = new Set<CommunityModule>([...CORE_CONTENT_MODULES, ...enabledContentModules]);
   const activeDefinitions = [
     ...CORE_CONTENT_DEFINITIONS,
@@ -594,21 +814,12 @@ function CommunityContentDock({
   ];
 
   return (
-    <section className="content-dock" aria-label="copula 콘텐츠">
+    <section className="content-dock is-manager" aria-label="copula 콘텐츠 관리">
       <div className="content-dock-head">
         <div className="content-dock-title">
-          <span>콘텐츠</span>
-          <strong>기본 {CORE_CONTENT_MODULES.length}개 · 사용 중 {activeDefinitions.length}개</strong>
+          <span>콘텐츠 관리</span>
+          <strong>사용 중 {activeDefinitions.length}개</strong>
         </div>
-        <button
-          type="button"
-          className={`secondary-button compact-button content-dock-add-button ${isCatalogOpen ? "is-active" : ""}`}
-          onClick={() => setIsCatalogOpen((current) => !current)}
-          aria-expanded={isCatalogOpen}
-        >
-          <Plus aria-hidden="true" />
-          추가
-        </button>
       </div>
 
       <div className="content-active-grid">
@@ -616,7 +827,7 @@ function CommunityContentDock({
           <ContentActiveButton
             key={definition.module}
             definition={definition}
-            active={activeModule === definition.module}
+            active={false}
             count={getContentModuleCount(community, definition.module)}
             isCore={isCoreContentModule(definition.module)}
             onClick={() => onModuleChange(definition.module)}
@@ -624,50 +835,48 @@ function CommunityContentDock({
         ))}
       </div>
 
-      {isCatalogOpen ? (
-        <div className="content-catalog-panel">
-          <div className="content-catalog-head">
-            <span>추가 콘텐츠</span>
-            <strong>{canManageContent ? "copula에 맞춰 켜기" : "관리자만 추가 가능"}</strong>
-          </div>
-          <div className="content-catalog-grid">
-            {OPTIONAL_CONTENT_DEFINITIONS.map((definition) => {
-              const isEnabled = enabledSet.has(definition.module);
-              const optionalModule = definition.module as OptionalContentModule;
-              return (
-                <ContentCatalogCard
-                  key={definition.module}
-                  icon={definition.icon}
-                  label={definition.label}
-                  eyebrow={definition.eyebrow}
-                  description={definition.description}
-                  actionLabel={isEnabled ? "사용 중" : canManageContent ? "추가" : "관리자만"}
-                  active={isEnabled}
-                  disabled={!isEnabled && !canManageContent}
-                  onClick={() => {
-                    if (isEnabled) {
-                      onModuleChange(definition.module);
-                      return;
-                    }
-                    onAddContentModule(optionalModule);
-                  }}
-                />
-              );
-            })}
-            {FUTURE_CONTENT_DEFINITIONS.map((definition) => (
+      <div className="content-catalog-panel">
+        <div className="content-catalog-head">
+          <span>추가 콘텐츠</span>
+          <strong>{canManageContent ? "필요한 것만 켜기" : "관리자만 추가 가능"}</strong>
+        </div>
+        <div className="content-catalog-grid">
+          {OPTIONAL_CONTENT_DEFINITIONS.map((definition) => {
+            const isEnabled = enabledSet.has(definition.module);
+            const optionalModule = definition.module as OptionalContentModule;
+            return (
               <ContentCatalogCard
-                key={definition.id}
+                key={definition.module}
                 icon={definition.icon}
                 label={definition.label}
                 eyebrow={definition.eyebrow}
                 description={definition.description}
-                actionLabel="준비 중"
-                disabled
+                actionLabel={isEnabled ? "열기" : canManageContent ? "추가" : "관리자만"}
+                active={isEnabled}
+                disabled={!isEnabled && !canManageContent}
+                onClick={() => {
+                  if (isEnabled) {
+                    onModuleChange(definition.module);
+                    return;
+                  }
+                  onAddContentModule(optionalModule);
+                }}
               />
-            ))}
-          </div>
+            );
+          })}
+          {FUTURE_CONTENT_DEFINITIONS.map((definition) => (
+            <ContentCatalogCard
+              key={definition.id}
+              icon={definition.icon}
+              label={definition.label}
+              eyebrow={definition.eyebrow}
+              description={definition.description}
+              actionLabel="준비 중"
+              disabled
+            />
+          ))}
         </div>
-      ) : null}
+      </div>
     </section>
   );
 }
@@ -869,70 +1078,6 @@ function getContentModuleDefinition(module: CoreContentModule | OptionalContentM
   return [...CORE_CONTENT_DEFINITIONS, ...OPTIONAL_CONTENT_DEFINITIONS].find((definition) => definition.module === module) || CORE_CONTENT_DEFINITIONS[0];
 }
 
-function CommunityNoticePanel({
-  community,
-  canManageContent,
-  onOpenNotice,
-  onEditNotice,
-  onDeleteNotice
-}: {
-  community: Community;
-  canManageContent: boolean;
-  onOpenNotice: () => void;
-  onEditNotice: (noticeId: string) => void;
-  onDeleteNotice: (noticeId: string) => void;
-}) {
-  const notices = sortNotices(community.notices);
-  if (!notices.length && !canManageContent) {
-    return null;
-  }
-
-  return (
-    <section className="community-notice-panel">
-      <SectionTitle
-        title="공지"
-        action={
-          canManageContent ? (
-            <button className="icon-button primary compact" onClick={onOpenNotice} aria-label="공지 작성" title="공지 작성">
-              <Plus aria-hidden="true" />
-            </button>
-          ) : undefined
-        }
-      />
-      <div className="community-notice-list">
-        {notices.length ? (
-          notices.map((notice) => (
-            <NoticeRow
-              key={notice.id}
-              community={community}
-              title={notice.title}
-              body={notice.body}
-              pinned={notice.pinned}
-              action={
-                canManageContent ? (
-                  <>
-                    <button className="row-icon-button" onClick={() => onEditNotice(notice.id)} aria-label="공지 수정" title="공지 수정">
-                      <Pencil aria-hidden="true" />
-                    </button>
-                    <button className="row-icon-button danger" onClick={() => onDeleteNotice(notice.id)} aria-label="공지 삭제" title="공지 삭제">
-                      <Trash2 aria-hidden="true" />
-                    </button>
-                  </>
-                ) : undefined
-              }
-            />
-          ))
-        ) : (
-          <button className="notice-empty-action" type="button" onClick={onOpenNotice}>
-            <Megaphone aria-hidden="true" />
-            <span>첫 공지를 작성하세요</span>
-          </button>
-        )}
-      </div>
-    </section>
-  );
-}
-
 type CopulaContentFilter = "all" | "notice" | "schedule" | "commitment" | "album" | "vlog";
 
 interface CopulaContentItem {
@@ -962,14 +1107,6 @@ function FeedModule({
   const filteredItems = activeFilter === "all"
     ? contentItems
     : contentItems.filter((item) => item.filter === activeFilter);
-  const todayScheduleCount = countTodayScheduleItems(community);
-  const openCommitmentCount = community.commitments.filter((item) => item.status === "open").length;
-  const recentAlbumCount = community.albums.filter((album) => {
-    const latestItem = getLatestAlbumItem(album);
-    const time = new Date(latestItem?.createdAt ?? album.createdAt).getTime();
-    return Date.now() - time <= 1000 * 60 * 60 * 24 * 14;
-  }).length;
-  const todaysVlogCount = (community.oneSecondLogs || []).filter((log) => isSameDate(log.createdAt, new Date())).length;
   const filters: Array<{ id: CopulaContentFilter; label: string; count: number }> = [
     { id: "all", label: "전체", count: contentItems.length },
     { id: "notice", label: "공지", count: contentItems.filter((item) => item.filter === "notice").length },
@@ -980,88 +1117,63 @@ function FeedModule({
   ];
 
   return (
-    <>
-      <section className="copula-overview-strip" aria-label="copula 요약">
-        <button type="button" onClick={() => onModuleChange("calendar")}>
-          <CalendarDays aria-hidden="true" />
-          <span>오늘</span>
-          <strong>{todayScheduleCount}</strong>
-        </button>
-        <button type="button" onClick={() => onModuleChange("commitments")}>
-          <ListTodo aria-hidden="true" />
-          <span>진행</span>
-          <strong>{openCommitmentCount}</strong>
-        </button>
-        <button type="button" onClick={() => onModuleChange("albums")}>
-          <Image aria-hidden="true" />
-          <span>앨범</span>
-          <strong>{recentAlbumCount}</strong>
-        </button>
-        <button type="button" onClick={() => onModuleChange("1s")}>
-          <Video aria-hidden="true" />
-          <span>1s</span>
-          <strong>{todaysVlogCount}</strong>
-        </button>
-      </section>
-
-      <section className="copula-content-panel">
-        <div className="copula-content-head">
-          <div>
-            <h2>콘텐츠</h2>
-            <span>{contentItems.length}개 항목</span>
-          </div>
+    <section className="copula-content-panel">
+      <div className="copula-content-head">
+        <div>
+          <h2>최근 활동</h2>
+          <span>{contentItems.length}개 항목</span>
         </div>
-        <div className="copula-filter-row" role="tablist" aria-label="콘텐츠 필터">
-          {filters.map((filter) => (
+      </div>
+      <div className="copula-filter-row" role="tablist" aria-label="콘텐츠 필터">
+        {filters.map((filter) => (
+          <button
+            key={filter.id}
+            type="button"
+            className={activeFilter === filter.id ? "is-active" : ""}
+            onClick={() => setActiveFilter(filter.id)}
+            role="tab"
+            aria-selected={activeFilter === filter.id}
+          >
+            {filter.label}
+            <span>{filter.count}</span>
+          </button>
+        ))}
+      </div>
+      <div className="copula-content-list">
+        {filteredItems.length ? (
+          filteredItems.map((item) => (
             <button
-              key={filter.id}
+              key={item.id}
               type="button"
-              className={activeFilter === filter.id ? "is-active" : ""}
-              onClick={() => setActiveFilter(filter.id)}
-              role="tab"
-              aria-selected={activeFilter === filter.id}
+              className={`copula-content-item content-${item.filter}`}
+              onClick={() => onModuleChange(item.module)}
             >
-              {filter.label}
-              <span>{filter.count}</span>
+              <span className="copula-content-icon">
+                <item.icon aria-hidden="true" />
+              </span>
+              <span className="copula-content-main">
+                <span className="copula-content-eyebrow">{item.eyebrow}</span>
+                <strong>{item.title}</strong>
+                <span>{item.meta}</span>
+                {item.body ? <small>{item.body}</small> : null}
+              </span>
+              {item.mediaUrl ? (
+                <span className="copula-content-media">
+                  {item.mediaKind === "video" ? (
+                    <video src={item.mediaUrl} muted playsInline />
+                  ) : (
+                    <img src={item.mediaUrl} alt="" />
+                  )}
+                </span>
+              ) : null}
+              <ChevronRight className="copula-content-chevron" aria-hidden="true" />
             </button>
-          ))}
-        </div>
-        <div className="copula-content-list">
-          {filteredItems.length ? (
-            filteredItems.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className={`copula-content-item content-${item.filter}`}
-                onClick={() => onModuleChange(item.module)}
-              >
-                <span className="copula-content-icon">
-                  <item.icon aria-hidden="true" />
-                </span>
-                <span className="copula-content-main">
-                  <span className="copula-content-eyebrow">{item.eyebrow}</span>
-                  <strong>{item.title}</strong>
-                  <span>{item.meta}</span>
-                  {item.body ? <small>{item.body}</small> : null}
-                </span>
-                {item.mediaUrl ? (
-                  <span className="copula-content-media">
-                    {item.mediaKind === "video" ? (
-                      <video src={item.mediaUrl} muted playsInline />
-                    ) : (
-                      <img src={item.mediaUrl} alt="" />
-                    )}
-                  </span>
-                ) : null}
-                <ChevronRight className="copula-content-chevron" aria-hidden="true" />
-              </button>
-            ))
-          ) : (
-            <EmptyState icon={Clock} title="표시할 콘텐츠가 없습니다" body="일정, 할 일, 앨범이나 1s 기록이 추가되면 이곳에 모입니다." />
-          )}
-        </div>
-      </section>
-    </>
+          ))
+        ) : (
+          <EmptyState icon={Clock} title="표시할 활동이 없습니다" body="일정, 할 일, 앨범이나 1s 기록이 추가되면 이곳에 모입니다." />
+        )}
+      </div>
+    </section>
   );
 }
 

@@ -1,4 +1,4 @@
-import type { User } from "@supabase/supabase-js";
+import type { AuthChangeEvent, Provider, User } from "@supabase/supabase-js";
 import { emptyState } from "../data";
 import { getSupabaseClient } from "../lib/supabaseClient";
 import type {
@@ -25,7 +25,7 @@ import type {
   UserProfile
 } from "../types";
 import { createId, initials } from "../utils";
-import type { CopulaRepository, OAuthProvider } from "./repository";
+import type { AuthStateChangeEvent, CopulaRepository, OAuthProvider } from "./repository";
 
 type ProfileRow = {
   id: string;
@@ -852,21 +852,40 @@ export function createSupabaseRepository(): CopulaRepository {
         throw new Error("간편 로그인 설정을 확인하지 못했습니다.");
       }
 
-      const settings = await response.json() as { external?: Partial<Record<OAuthProvider, boolean>> };
-      const providers: OAuthProvider[] = ["google", "kakao", "apple"];
-      return providers.filter((provider) => settings.external?.[provider] === true);
+      const settings = await response.json() as { external?: Record<string, boolean> };
+      const providers: OAuthProvider[] = ["google", "kakao", "naver", "apple"];
+      const configuredProviders = new Set(
+        (import.meta.env.VITE_OAUTH_PROVIDERS ?? "")
+          .split(",")
+          .map((provider) => provider.trim())
+          .filter(Boolean)
+      );
+      return providers.filter(
+        (provider) =>
+          settings.external?.[supabaseOAuthProvider(provider)] === true || configuredProviders.has(provider)
+      );
     },
 
     async signInWithOAuth(provider) {
       const { error } = await supabase.auth.signInWithOAuth({
-        provider,
+        provider: supabaseOAuthProvider(provider),
         options: {
-          redirectTo: window.location.origin
+          redirectTo: authRedirectUrl()
         }
       });
       if (error) {
         throw new Error(readableSupabaseError(error.message));
       }
+    },
+
+    subscribeToAuthState(onChange) {
+      const { data } = supabase.auth.onAuthStateChange((event) => {
+        const normalized = normalizeAuthChangeEvent(event);
+        if (!normalized) return;
+        window.setTimeout(() => onChange(normalized), 0);
+      });
+
+      return () => data.subscription.unsubscribe();
     },
 
     async signOut() {
@@ -878,7 +897,7 @@ export function createSupabaseRepository(): CopulaRepository {
 
     async resetPassword(email) {
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: window.location.origin
+        redirectTo: authRedirectUrl("recovery")
       });
       if (error) {
         throw new Error(readableSupabaseError(error.message));
@@ -2140,6 +2159,25 @@ async function uploadAlbumMedia(communityId: string, albumId: string, userId: st
 }
 
 function readableSupabaseError(message: string) {
+  const normalized = message.toLowerCase();
+  if (normalized.includes("invalid login credentials")) {
+    return "이메일 또는 비밀번호가 올바르지 않습니다.";
+  }
+  if (normalized.includes("email not confirmed")) {
+    return "이메일 인증을 완료한 뒤 로그인해 주세요.";
+  }
+  if (normalized.includes("user already registered")) {
+    return "이미 가입된 이메일입니다.";
+  }
+  if (normalized.includes("password should be at least") || normalized.includes("weak password")) {
+    return "비밀번호는 6자 이상으로 입력해 주세요.";
+  }
+  if (normalized.includes("rate limit") || normalized.includes("too many requests")) {
+    return "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.";
+  }
+  if (normalized.includes("provider is not enabled") || normalized.includes("unsupported provider")) {
+    return "아직 사용할 수 없는 간편 로그인입니다.";
+  }
   if (message.includes("auth_required")) {
     return "로그인이 필요합니다.";
   }
@@ -2172,6 +2210,26 @@ function readableSupabaseError(message: string) {
   }
 
   return message;
+}
+
+function supabaseOAuthProvider(provider: OAuthProvider): Provider {
+  return provider === "naver" ? "custom:naver" : provider;
+}
+
+function authRedirectUrl(type?: "recovery") {
+  const url = new URL("/", window.location.origin);
+  const inviteCode = new URL(window.location.href).searchParams.get("invite");
+  if (inviteCode) url.searchParams.set("invite", inviteCode);
+  if (type) url.searchParams.set("type", type);
+  return url.toString();
+}
+
+function normalizeAuthChangeEvent(event: AuthChangeEvent): AuthStateChangeEvent | null {
+  if (event === "SIGNED_IN" || event === "USER_UPDATED") return "signedIn";
+  if (event === "SIGNED_OUT") return "signedOut";
+  if (event === "PASSWORD_RECOVERY") return "passwordRecovery";
+  if (event === "TOKEN_REFRESHED") return "tokenRefreshed";
+  return null;
 }
 
 async function createOneSecondVideoUrls(logs: OneSecondLogRow[]) {

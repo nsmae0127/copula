@@ -22,7 +22,8 @@ import type {
 } from "../types";
 
 export type DataBackend = "local" | "supabase";
-export type OAuthProvider = "google" | "kakao" | "apple";
+export type OAuthProvider = "google" | "kakao" | "naver" | "apple";
+export type AuthStateChangeEvent = "signedIn" | "signedOut" | "passwordRecovery" | "tokenRefreshed";
 
 export interface AuthCredentials {
   mode: "signIn" | "signUp";
@@ -41,6 +42,7 @@ export interface CopulaRepository {
   signIn?(credentials?: AuthCredentials): Promise<void>;
   getAvailableOAuthProviders?(): Promise<OAuthProvider[]>;
   signInWithOAuth?(provider: OAuthProvider): Promise<void>;
+  subscribeToAuthState?(onChange: (event: AuthStateChangeEvent) => void): () => void;
   signOut?(): Promise<void>;
   resetPassword?(email: string): Promise<void>;
   updatePassword?(password: string): Promise<void>;

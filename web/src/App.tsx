@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Layout } from "./components/Layout";
+import { clearStoredAuthReturnError, readStoredAuthReturnError } from "./authReturn";
 import { useCopulaStore } from "./state";
 import type { Community, CommunityModule, CopulaNotification, ModalType, Role, ViewName } from "./types";
 
@@ -103,7 +104,7 @@ export function App() {
   const [modal, setModal] = useState<ModalState | null>(null);
   const [viewerTarget, setViewerTarget] = useState<AlbumItemViewerTarget | null>(null);
   const [pendingConfirmation, setPendingConfirmation] = useState<PendingConfirmation | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(() => readInitialAuthError());
   const [toast, setToast] = useState<ToastState | null>(null);
   const [pendingInviteCode, setPendingInviteCode] = useState<string | null>(() => readInitialInviteCode());
   const [authReturnIntent, setAuthReturnIntent] = useState<AuthReturnIntent>(() => readInitialAuthReturnIntent());
@@ -146,6 +147,10 @@ export function App() {
     if (urlInviteCode) {
       removeInviteCodeFromUrl();
     }
+  }, []);
+
+  useEffect(() => {
+    clearStoredAuthReturnError();
   }, []);
 
   useEffect(() => {
@@ -355,12 +360,8 @@ export function App() {
           }}
           onSignIn={async (credentials) => {
             setActionError(null);
-            try {
-              await actions.signIn(credentials);
-              resetNavigationToHome();
-            } catch (error) {
-              setActionError(errorMessage(error));
-            }
+            await actions.signIn(credentials);
+            resetNavigationToHome();
           }}
         />
       </Suspense>
@@ -1143,6 +1144,33 @@ function readInitialInviteCode() {
 
 function readInitialAuthReturnIntent(): AuthReturnIntent {
   return readAuthReturnIntentFromUrl() ?? readStoredAuthReturnIntent();
+}
+
+function readInitialAuthError() {
+  const storedError = readStoredAuthReturnError();
+  if (storedError) return readableAuthReturnError(storedError);
+
+  const searchParams = new URLSearchParams(window.location.search);
+  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const description = searchParams.get("error_description") ?? hashParams.get("error_description");
+  if (description) return readableAuthReturnError(description.replace(/\+/g, " "));
+
+  const code = searchParams.get("error_code") ?? hashParams.get("error_code");
+  return code ? "로그인을 완료하지 못했습니다. 다시 시도해 주세요." : null;
+}
+
+function readableAuthReturnError(message: string) {
+  const normalized = message.toLowerCase();
+  if (normalized.includes("access_denied") || normalized.includes("cancel")) {
+    return "로그인이 취소되었습니다.";
+  }
+  if (normalized.includes("provider is not enabled") || normalized.includes("unsupported provider")) {
+    return "아직 사용할 수 없는 간편 로그인입니다.";
+  }
+  if (normalized.includes("email")) {
+    return "계정 이메일 정보를 확인하지 못했습니다.";
+  }
+  return "로그인을 완료하지 못했습니다. 다시 시도해 주세요.";
 }
 
 function readInitialRouteIntent(): RouteIntent | null {

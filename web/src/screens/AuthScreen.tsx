@@ -123,6 +123,11 @@ export function AuthScreen({
         displayName: String(form.get("displayName") ?? "")
       });
       if (mode === "signIn") rememberRecentLoginMethod("email");
+    } catch (error) {
+      setNotice({
+        kind: "error",
+        message: error instanceof Error ? error.message : "로그인하지 못했습니다."
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -278,12 +283,17 @@ export function AuthScreen({
                 <button
                   type="button"
                   className="auth-social-button is-naver"
-                  disabled
-                  aria-label="Naver 로그인 준비 중"
-                  title="Naver 로그인 준비 중"
+                  onClick={() => void startOAuth("naver")}
+                  disabled={isBusy || !isOAuthAvailable("naver")}
+                  aria-busy={activeOAuthProvider === "naver"}
+                  aria-label={isOAuthAvailable("naver") ? "Naver 로그인" : "Naver 로그인 준비 중"}
+                  title={isOAuthAvailable("naver") ? "Naver 로그인" : "Naver 로그인 준비 중"}
                 >
+                  {recentLoginMethod === "naver" ? <span className="auth-recent-login">최근 로그인</span> : null}
                   <span className="auth-provider-symbol is-naver" aria-hidden="true">N</span>
-                  <span className="auth-provider-status" aria-hidden="true" />
+                  {availableOAuthProviders && !isOAuthAvailable("naver") ? (
+                    <span className="auth-provider-status" aria-hidden="true" />
+                  ) : null}
                 </button>
                 <button
                   type="button"
@@ -509,7 +519,7 @@ function isAuthFormPanel(panel: AuthPanel) {
 function readRecentLoginMethod(): RecentLoginMethod | null {
   try {
     const stored = window.localStorage.getItem(recentLoginStorageKey);
-    return stored === "email" || stored === "google" || stored === "kakao" || stored === "apple"
+    return stored === "email" || stored === "google" || stored === "kakao" || stored === "naver" || stored === "apple"
       ? stored
       : null;
   } catch {
@@ -518,7 +528,7 @@ function readRecentLoginMethod(): RecentLoginMethod | null {
 }
 
 function isOAuthLoginMethod(method: RecentLoginMethod | null): method is OAuthProvider {
-  return method === "google" || method === "kakao" || method === "apple";
+  return method === "google" || method === "kakao" || method === "naver" || method === "apple";
 }
 
 type AuthViewportStyle = CSSProperties & {

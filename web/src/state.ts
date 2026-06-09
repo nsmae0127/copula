@@ -363,6 +363,38 @@ export function useCopulaStore() {
     };
   }, [isHydrated, selectedCommunity?.id]);
 
+  useEffect(() => {
+    if (!isHydrated || !repository.subscribeToAuthState) return;
+
+    let cancelled = false;
+    const unsubscribe = repository.subscribeToAuthState((event) => {
+      if (event === "signedOut") {
+        setState(normalizeState(emptyState()));
+        setLoadError(null);
+        return;
+      }
+
+      void repository
+        .loadState()
+        .then((nextState) => {
+          if (!cancelled) {
+            setState(withCommitmentReminders(normalizeState(nextState)));
+            setLoadError(null);
+          }
+        })
+        .catch((error) => {
+          if (!cancelled) {
+            setLoadError(error instanceof Error ? error.message : "로그인 정보를 불러오지 못했습니다.");
+          }
+        });
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [isHydrated]);
+
   async function signIn(...args: Parameters<NonNullable<typeof repository.signIn>>) {
     if (repository.signIn) {
       await repository.signIn(...args);

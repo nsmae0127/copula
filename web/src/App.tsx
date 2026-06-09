@@ -86,6 +86,7 @@ export function App() {
     const intent = readInitialRouteIntent();
     return intent?.view === "messages" ? intent.communityId ?? null : null;
   });
+  const [notificationSettingsRequestKey, setNotificationSettingsRequestKey] = useState(0);
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null);
   const [modal, setModal] = useState<ModalState | null>(null);
   const [viewerTarget, setViewerTarget] = useState<AlbumItemViewerTarget | null>(null);
@@ -229,6 +230,25 @@ export function App() {
     setSelectedAlbumId(null);
     setSelectedMessageCommunityId(null);
     setViewerTarget(null);
+  }
+
+  function navigateBack() {
+    startViewTransition(() => {
+      if (activeView === "messages" && selectedMessageCommunityId) {
+        setSelectedMessageCommunityId(null);
+        return;
+      }
+
+      if (activeView === "community" && activeModule !== "feed") {
+        setActiveModule("feed");
+        setSelectedAlbumId(null);
+        return;
+      }
+
+      if (activeView !== "home") {
+        resetNavigationToHome();
+      }
+    });
   }
 
   if (!state.currentUser) {
@@ -681,6 +701,7 @@ export function App() {
       return (
         <NotificationsScreen
           state={state}
+          settingsRequestKey={notificationSettingsRequestKey}
           onMarkRead={actions.markNotificationsRead}
           onOpenNotification={openNotification}
           onSavePushSubscription={actions.savePushSubscription}
@@ -766,15 +787,8 @@ export function App() {
           }
         })}
         onOpenNotifications={() => startViewTransition(() => setActiveView("notifications"))}
-        onOpenCalendar={() => startViewTransition(() => {
-          const targetCommunity = selectedCommunity ?? state.communities[0] ?? null;
-          if (targetCommunity) {
-            openCommunity(targetCommunity.id, "calendar");
-            return;
-          }
-          setActiveView("community");
-          setActiveModule("calendar");
-        })}
+        onOpenNotificationSettings={() => setNotificationSettingsRequestKey((current) => current + 1)}
+        onBack={navigateBack}
         onOpenJoin={() => openJoinModal()}
         onOpenCreateCommunity={() => setModal({ type: "community" })}
         onOpenQuickNotice={openQuickNotice}

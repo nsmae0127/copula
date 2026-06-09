@@ -1,6 +1,6 @@
 
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Bell, Check, Smartphone } from "lucide-react";
 import {
   getPushReadiness,
@@ -13,17 +13,30 @@ import { EmptyState, NotificationRow, SectionTitle } from "../components/ui";
 
 interface NotificationsScreenProps {
   state: CopulaState;
+  settingsRequestKey: number;
   onMarkRead: () => void;
   onOpenNotification: (notification: CopulaState["notifications"][number]) => void;
   onSavePushSubscription: (subscription: PushSubscriptionPayload) => Promise<void> | void;
 }
 
-export function NotificationsScreen({ state, onMarkRead, onOpenNotification, onSavePushSubscription }: NotificationsScreenProps) {
+export function NotificationsScreen({
+  state,
+  settingsRequestKey,
+  onMarkRead,
+  onOpenNotification,
+  onSavePushSubscription
+}: NotificationsScreenProps) {
   const [filter, setFilter] = useState<NotificationFilter>("all");
   const [pushReadiness, setPushReadiness] = useState<PushReadiness>(() => getPushReadiness());
   const [pushStatus, setPushStatus] = useState<{ tone: "success" | "error"; message: string } | null>(null);
   const [isPushSaving, setIsPushSaving] = useState(false);
   const [isPushModalOpen, setIsPushModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (settingsRequestKey === 0) return;
+    setPushStatus(null);
+    setIsPushModalOpen(true);
+  }, [settingsRequestKey]);
 
   const filteredNotifications = state.notifications.filter((item) => matchesNotificationFilter(item, filter));
 
@@ -90,17 +103,6 @@ export function NotificationsScreen({ state, onMarkRead, onOpenNotification, onS
         <div className="page-head">
           <h1>알림</h1>
         </div>
-        <button 
-          className="notifications-settings-trigger"
-          onClick={() => {
-            setPushStatus(null);
-            setIsPushModalOpen(true);
-          }}
-          title="푸시 알림 설정"
-        >
-          <Smartphone size={16} />
-          <span>설정</span>
-        </button>
       </section>
 
       <section className="section">

@@ -1,8 +1,9 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from "react";
 import {
   Bell,
   Blocks,
   CalendarDays,
+  CircleDashed,
   Home,
   Image,
   KeyRound,
@@ -11,6 +12,7 @@ import {
   MessageCirclePlus,
   Moon,
   Plus,
+  Settings,
   Sun,
   UserPlus,
   UserRound,
@@ -32,7 +34,8 @@ interface LayoutProps {
   children: ReactNode;
   onViewChange: (view: ViewName) => void;
   onOpenNotifications: () => void;
-  onOpenCalendar: () => void;
+  onOpenNotificationSettings: () => void;
+  onBack: () => void;
   onOpenJoin: () => void;
   onOpenCreateCommunity: () => void;
   onOpenQuickNotice: () => void;
@@ -52,7 +55,8 @@ export function Layout({
   children,
   onViewChange,
   onOpenNotifications,
-  onOpenCalendar,
+  onOpenNotificationSettings,
+  onBack,
   onOpenJoin,
   onOpenCreateCommunity,
   onOpenQuickNotice,
@@ -63,6 +67,7 @@ export function Layout({
 }: LayoutProps) {
   const [isPlusMenuOpen, setIsPlusMenuOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const backSwipeStartRef = useRef<{ x: number; y: number; tracking: boolean } | null>(null);
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("theme");
@@ -106,10 +111,53 @@ export function Layout({
   };
   const plusButton = getPlusButtonConfig(activeView, Boolean(selectedCommunity));
   const PlusButtonIcon = plusButton.icon;
+  const showTopbar = activeView !== "notifications" && activeView !== "messages";
+
+  function handleBackSwipeStart(event: PointerEvent<HTMLDivElement>) {
+    if (event.pointerType === "mouse") return;
+    const target = event.target as HTMLElement;
+    if (
+      target.closest(
+        ".messages-screen-chat, .notifications-push-modal-overlay, .modal-backdrop, .viewer-backdrop, input, textarea, select, [contenteditable='true']"
+      )
+    ) {
+      return;
+    }
+
+    backSwipeStartRef.current = {
+      x: event.clientX,
+      y: event.clientY,
+      tracking: event.clientX <= 44
+    };
+  }
+
+  function handleBackSwipeMove(event: PointerEvent<HTMLDivElement>) {
+    const start = backSwipeStartRef.current;
+    if (!start?.tracking) return;
+
+    const deltaX = event.clientX - start.x;
+    const deltaY = event.clientY - start.y;
+    if (deltaX > 72 && Math.abs(deltaY) < 54) {
+      backSwipeStartRef.current = null;
+      setIsPlusMenuOpen(false);
+      setIsAccountMenuOpen(false);
+      onBack();
+    }
+  }
+
+  function clearBackSwipeTracking() {
+    backSwipeStartRef.current = null;
+  }
 
   return (
-    <div className="app-shell">
-      <header className="topbar">
+    <div
+      className={`app-shell ${showTopbar ? "" : "is-headerless"}`}
+      onPointerDown={handleBackSwipeStart}
+      onPointerMove={handleBackSwipeMove}
+      onPointerUp={clearBackSwipeTracking}
+      onPointerCancel={clearBackSwipeTracking}
+    >
+      {showTopbar ? <header className="topbar">
         <div className="top-account-area">
           <button
             className={`topbar-account-button ${activeView === "profile" ? "is-active" : ""}`}
@@ -133,6 +181,7 @@ export function Layout({
                 className="account-menu-backdrop"
                 type="button"
                 aria-label="계정 메뉴 닫기"
+                onPointerDown={() => setIsAccountMenuOpen(false)}
                 onClick={() => setIsAccountMenuOpen(false)}
               />
               <div className="account-menu-popover" id="topbar-account-menu">
@@ -180,7 +229,7 @@ export function Layout({
         </div>
         <div className="top-actions">
           <button
-            className={`topbar-notification-button ${activeView === "notifications" ? "is-active" : ""}`}
+            className="topbar-notification-button"
             type="button"
             onClick={() => {
               playTapSound();
@@ -199,7 +248,7 @@ export function Layout({
             ) : null}
           </button>
         </div>
-      </header>
+      </header> : null}
 
       <main className="screen">{children}</main>
 
@@ -221,14 +270,14 @@ export function Layout({
 
         {/* Copula */}
         <button
-          className={`nav-item ${activeView === "community" && activeModule !== "calendar" ? "is-active" : ""}`}
+          className={`nav-item ${activeView === "community" ? "is-active" : ""}`}
           aria-label="Copula"
           onClick={() => {
             playTapSound();
             setIsPlusMenuOpen(false);
             onViewChange("community");
           }}
-          aria-current={activeView === "community" && activeModule !== "calendar" ? "page" : undefined}
+          aria-current={activeView === "community" ? "page" : undefined}
         >
           <span className="nav-icon-wrap"><Users aria-hidden="true" /></span>
           <span className="nav-label">Copula</span>
@@ -240,10 +289,16 @@ export function Layout({
             className={`nav-item nav-plus-button nav-plus-button-${plusButton.tone} ${isPlusMenuOpen ? "is-active" : ""}`}
             onClick={() => {
               playTapSound();
+              setIsAccountMenuOpen(false);
+              if (activeView === "notifications") {
+                setIsPlusMenuOpen(false);
+                onOpenNotificationSettings();
+                return;
+              }
               setIsPlusMenuOpen(!isPlusMenuOpen);
             }}
             aria-label={plusButton.label}
-            aria-expanded={isPlusMenuOpen}
+            aria-expanded={activeView === "notifications" ? undefined : isPlusMenuOpen}
             title={plusButton.label}
           >
             <span className="nav-plus-icon-wrap" aria-hidden="true">
@@ -252,7 +307,7 @@ export function Layout({
             </span>
           </button>
           
-          {isPlusMenuOpen ? (
+          {isPlusMenuOpen && activeView !== "notifications" ? (
             <>
               <div className="plus-menu-backdrop" onClick={() => setIsPlusMenuOpen(false)} />
               <div className="plus-menu-popover">
@@ -319,7 +374,7 @@ export function Layout({
                     </button>
                   </div>
                 ) : null}
-                {activeView === "home" || activeView === "notifications" || activeView === "profile" || !selectedCommunity ? (
+                {activeView === "home" || activeView === "profile" || !selectedCommunity ? (
                   <div className="plus-menu-section secondary">
                     <button
                       type="button"
@@ -370,20 +425,18 @@ export function Layout({
           <span className="nav-label nav-label-long">Messages</span>
         </button>
 
-        {/* 캘린더 */}
+        {/* 추후 기능을 위한 빈 슬롯 */}
         <button
-          className={`nav-item ${activeView === "community" && activeModule === "calendar" ? "is-active" : ""}`}
-          aria-label="캘린더"
+          className="nav-item nav-placeholder-button"
+          aria-label="준비 중"
           onClick={() => {
             playTapSound();
             setIsPlusMenuOpen(false);
             setIsAccountMenuOpen(false);
-            onOpenCalendar();
           }}
-          aria-current={activeView === "community" && activeModule === "calendar" ? "page" : undefined}
+          title="준비 중"
         >
-          <span className="nav-icon-wrap"><CalendarDays aria-hidden="true" /></span>
-          <span className="nav-label nav-label-long">Calendar</span>
+          <span className="nav-icon-wrap"><CircleDashed aria-hidden="true" /></span>
         </button>
       </nav>
     </div>
@@ -394,8 +447,17 @@ function getPlusButtonConfig(activeView: ViewName, hasSelectedCommunity: boolean
   icon: LucideIcon;
   label: string;
   showBadge: boolean;
-  tone: "home" | "content" | "message" | "profile";
+  tone: "home" | "content" | "message" | "profile" | "settings";
 } {
+  if (activeView === "notifications") {
+    return {
+      icon: Settings,
+      label: "알림 설정",
+      showBadge: false,
+      tone: "settings"
+    };
+  }
+
   if (activeView === "community" && hasSelectedCommunity) {
     return {
       icon: Blocks,

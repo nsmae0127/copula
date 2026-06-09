@@ -191,10 +191,13 @@ export function AuthScreen({
                   onClick={() => void startOAuth("google")}
                   disabled={isBusy || !isOAuthAvailable("google")}
                   aria-busy={activeOAuthProvider === "google"}
+                  aria-label={isOAuthAvailable("google") ? "Google 로그인" : "Google 로그인 준비 중"}
+                  title={isOAuthAvailable("google") ? "Google 로그인" : "Google 로그인 준비 중"}
                 >
                   <span className="auth-provider-symbol is-google" aria-hidden="true">G</span>
-                  <span>Google</span>
-                  {availableOAuthProviders && !isOAuthAvailable("google") ? <small>준비 중</small> : null}
+                  {availableOAuthProviders && !isOAuthAvailable("google") ? (
+                    <span className="auth-provider-status" aria-hidden="true" />
+                  ) : null}
                 </button>
                 <button
                   type="button"
@@ -202,20 +205,23 @@ export function AuthScreen({
                   onClick={() => void startOAuth("kakao")}
                   disabled={isBusy || !isOAuthAvailable("kakao")}
                   aria-busy={activeOAuthProvider === "kakao"}
+                  aria-label={isOAuthAvailable("kakao") ? "Kakao 로그인" : "Kakao 로그인 준비 중"}
+                  title={isOAuthAvailable("kakao") ? "Kakao 로그인" : "Kakao 로그인 준비 중"}
                 >
                   <MessageCircle aria-hidden="true" />
-                  <span>Kakao</span>
-                  {availableOAuthProviders && !isOAuthAvailable("kakao") ? <small>준비 중</small> : null}
+                  {availableOAuthProviders && !isOAuthAvailable("kakao") ? (
+                    <span className="auth-provider-status" aria-hidden="true" />
+                  ) : null}
                 </button>
                 <button
                   type="button"
                   className="auth-social-button is-naver"
                   disabled
                   aria-label="Naver 로그인 준비 중"
+                  title="Naver 로그인 준비 중"
                 >
                   <span className="auth-provider-symbol is-naver" aria-hidden="true">N</span>
-                  <span>Naver</span>
-                  <small>준비 중</small>
+                  <span className="auth-provider-status" aria-hidden="true" />
                 </button>
                 <button
                   type="button"
@@ -223,10 +229,13 @@ export function AuthScreen({
                   onClick={() => void startOAuth("apple")}
                   disabled={isBusy || !isOAuthAvailable("apple")}
                   aria-busy={activeOAuthProvider === "apple"}
+                  aria-label={isOAuthAvailable("apple") ? "Apple 로그인" : "Apple 로그인 준비 중"}
+                  title={isOAuthAvailable("apple") ? "Apple 로그인" : "Apple 로그인 준비 중"}
                 >
                   <Apple aria-hidden="true" />
-                  <span>Apple</span>
-                  {availableOAuthProviders && !isOAuthAvailable("apple") ? <small>준비 중</small> : null}
+                  {availableOAuthProviders && !isOAuthAvailable("apple") ? (
+                    <span className="auth-provider-status" aria-hidden="true" />
+                  ) : null}
                 </button>
               </div>
 

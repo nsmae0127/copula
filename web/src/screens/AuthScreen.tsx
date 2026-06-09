@@ -16,6 +16,9 @@ import type { AuthCredentials, DataBackend, OAuthProvider } from "../repositorie
 import { useDialogFocusTrap } from "../hooks/useDialogFocusTrap";
 
 type AuthPanel = "signIn" | "signUp" | "reset" | "terms" | "privacy" | "support" | null;
+type RecentLoginMethod = OAuthProvider | "email";
+
+const recentLoginStorageKey = "copula.recent-login-method";
 
 const legalPanels: Record<Exclude<AuthPanel, "signIn" | "signUp" | "reset" | null>, {
   title: string;
@@ -54,6 +57,7 @@ export function AuthScreen({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeOAuthProvider, setActiveOAuthProvider] = useState<OAuthProvider | null>(null);
   const [availableOAuthProviders, setAvailableOAuthProviders] = useState<OAuthProvider[] | null>(null);
+  const [recentLoginMethod, setRecentLoginMethod] = useState<RecentLoginMethod | null>(readRecentLoginMethod);
   const isBusy = isLoading || isSubmitting;
   const isNotice = Boolean(error?.includes("확인 이메일"));
 
@@ -79,13 +83,16 @@ export function AuthScreen({
   }
 
   async function startOAuth(provider: OAuthProvider) {
+    const previousMethod = recentLoginMethod;
     setNotice(null);
     setActiveOAuthProvider(provider);
     setIsSubmitting(true);
+    rememberRecentLoginMethod(provider);
 
     try {
       await onOAuthSignIn(provider);
     } catch (error) {
+      rememberRecentLoginMethod(previousMethod);
       setNotice({
         kind: "error",
         message: error instanceof Error ? error.message : "간편 로그인을 시작하지 못했습니다."
@@ -115,8 +122,22 @@ export function AuthScreen({
         password: String(form.get("password") ?? ""),
         displayName: String(form.get("displayName") ?? "")
       });
+      if (mode === "signIn") rememberRecentLoginMethod("email");
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  function rememberRecentLoginMethod(method: RecentLoginMethod | null) {
+    setRecentLoginMethod(method);
+    try {
+      if (method) {
+        window.localStorage.setItem(recentLoginStorageKey, method);
+      } else {
+        window.localStorage.removeItem(recentLoginStorageKey);
+      }
+    } catch {
+      // The in-memory marker still works when browser storage is unavailable.
     }
   }
 
@@ -169,22 +190,61 @@ export function AuthScreen({
       <section className="auth-minimal" aria-label="Copula">
         {isLoading ? <span className="loading-spinner" aria-label="불러오는 중" /> : null}
 
-        <div className="auth-brand-logo" aria-label="Copula">
-          <span className="auth-brand-mark">
-            <img src="/assets/logo-mark-96.png" alt="" aria-hidden="true" />
-          </span>
-          <span className="auth-brand-name">Copula</span>
-        </div>
-
         <div className="auth-card">
           {isSupabase ? (
             <>
-              <div className="auth-card-heading">
-                <strong>간편 로그인</strong>
-                <span>자주 쓰는 계정으로 바로 시작하세요</span>
+              {error || notice || pendingInviteCode ? (
+                <div className="auth-entry-status">
+                  <InlineStatus
+                    error={error}
+                    isNotice={isNotice}
+                    notice={notice}
+                    pendingInviteCode={pendingInviteCode}
+                  />
+                </div>
+              ) : null}
+
+              <div className={`auth-email-actions${recentLoginMethod === "email" ? " has-recent-login" : ""}`} aria-label="이메일 계정">
+                <button
+                  type="button"
+                  className="auth-email-button primary"
+                  onClick={() => openPanel("signIn")}
+                  disabled={isBusy}
+                >
+                  {recentLoginMethod === "email" ? <span className="auth-recent-login">최근 로그인</span> : null}
+                  <LogIn aria-hidden="true" />
+                  <span>이메일 로그인</span>
+                </button>
+                <button
+                  type="button"
+                  className="auth-email-button secondary"
+                  onClick={() => openPanel("signUp")}
+                  disabled={isBusy}
+                >
+                  <UserPlus aria-hidden="true" />
+                  <span>회원가입</span>
+                </button>
               </div>
 
-              <div className="auth-social-grid" aria-label="간편 로그인">
+              <button
+                type="button"
+                className="auth-sub-link"
+                onClick={() => openPanel("reset")}
+                disabled={isBusy}
+              >
+                비밀번호를 잊으셨나요?
+              </button>
+
+              <div className="auth-divider" aria-hidden="true">
+                <span />
+                <b>또는</b>
+                <span />
+              </div>
+
+              <div
+                className={`auth-social-grid${isOAuthLoginMethod(recentLoginMethod) ? " has-recent-login" : ""}`}
+                aria-label="간편 로그인"
+              >
                 <button
                   type="button"
                   className="auth-social-button is-google"
@@ -194,6 +254,7 @@ export function AuthScreen({
                   aria-label={isOAuthAvailable("google") ? "Google 로그인" : "Google 로그인 준비 중"}
                   title={isOAuthAvailable("google") ? "Google 로그인" : "Google 로그인 준비 중"}
                 >
+                  {recentLoginMethod === "google" ? <span className="auth-recent-login">최근 로그인</span> : null}
                   <span className="auth-provider-symbol is-google" aria-hidden="true">G</span>
                   {availableOAuthProviders && !isOAuthAvailable("google") ? (
                     <span className="auth-provider-status" aria-hidden="true" />
@@ -208,6 +269,7 @@ export function AuthScreen({
                   aria-label={isOAuthAvailable("kakao") ? "Kakao 로그인" : "Kakao 로그인 준비 중"}
                   title={isOAuthAvailable("kakao") ? "Kakao 로그인" : "Kakao 로그인 준비 중"}
                 >
+                  {recentLoginMethod === "kakao" ? <span className="auth-recent-login">최근 로그인</span> : null}
                   <MessageCircle aria-hidden="true" />
                   {availableOAuthProviders && !isOAuthAvailable("kakao") ? (
                     <span className="auth-provider-status" aria-hidden="true" />
@@ -232,59 +294,13 @@ export function AuthScreen({
                   aria-label={isOAuthAvailable("apple") ? "Apple 로그인" : "Apple 로그인 준비 중"}
                   title={isOAuthAvailable("apple") ? "Apple 로그인" : "Apple 로그인 준비 중"}
                 >
+                  {recentLoginMethod === "apple" ? <span className="auth-recent-login">최근 로그인</span> : null}
                   <Apple aria-hidden="true" />
                   {availableOAuthProviders && !isOAuthAvailable("apple") ? (
                     <span className="auth-provider-status" aria-hidden="true" />
                   ) : null}
                 </button>
               </div>
-
-              {error || notice || pendingInviteCode ? (
-                <div className="auth-entry-status">
-                  <InlineStatus
-                    error={error}
-                    isNotice={isNotice}
-                    notice={notice}
-                    pendingInviteCode={pendingInviteCode}
-                  />
-                </div>
-              ) : null}
-
-              <div className="auth-divider" aria-hidden="true">
-                <span />
-                <b>또는</b>
-                <span />
-              </div>
-
-              <div className="auth-email-actions" aria-label="이메일 계정">
-                <button
-                  type="button"
-                  className="auth-email-button primary"
-                  onClick={() => openPanel("signIn")}
-                  disabled={isBusy}
-                >
-                  <LogIn aria-hidden="true" />
-                  <span>이메일 로그인</span>
-                </button>
-                <button
-                  type="button"
-                  className="auth-email-button secondary"
-                  onClick={() => openPanel("signUp")}
-                  disabled={isBusy}
-                >
-                  <UserPlus aria-hidden="true" />
-                  <span>회원가입</span>
-                </button>
-              </div>
-
-              <button
-                type="button"
-                className="auth-sub-link"
-                onClick={() => openPanel("reset")}
-                disabled={isBusy}
-              >
-                비밀번호를 잊으셨나요?
-              </button>
             </>
           ) : (
             <button
@@ -488,6 +504,21 @@ function isLegalPanel(panel: AuthPanel): panel is "terms" | "privacy" | "support
 
 function isAuthFormPanel(panel: AuthPanel) {
   return panel === "signIn" || panel === "signUp" || panel === "reset";
+}
+
+function readRecentLoginMethod(): RecentLoginMethod | null {
+  try {
+    const stored = window.localStorage.getItem(recentLoginStorageKey);
+    return stored === "email" || stored === "google" || stored === "kakao" || stored === "apple"
+      ? stored
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function isOAuthLoginMethod(method: RecentLoginMethod | null): method is OAuthProvider {
+  return method === "google" || method === "kakao" || method === "apple";
 }
 
 type AuthViewportStyle = CSSProperties & {

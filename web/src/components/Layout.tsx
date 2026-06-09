@@ -406,7 +406,7 @@ export function Layout({
           ) : null}
         </div>
 
-        {/* 메시지 */}
+        {/* Chat */}
         <button
           className={`nav-item ${activeView === "messages" ? "is-active" : ""}`}
           aria-label="메시지"
@@ -423,7 +423,7 @@ export function Layout({
               <span className="nav-red-dot" aria-label={`${unreadMessageCount}개 읽지 않은 메시지`} />
             ) : null}
           </span>
-          <span className="nav-label nav-label-long">Messages</span>
+          <span className="nav-label">Chat</span>
         </button>
 
         {/* Today */}

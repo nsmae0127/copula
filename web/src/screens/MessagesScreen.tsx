@@ -61,7 +61,7 @@ export function MessagesScreen({
     <section className="messages-screen">
       <div className="messages-screen-head">
         <div>
-          <h1>메시지</h1>
+          <h1>Chat</h1>
         </div>
       </div>
 

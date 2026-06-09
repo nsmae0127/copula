@@ -9,7 +9,7 @@ import {
   type PushReadiness
 } from "../lib/pushNotifications";
 import type { CopulaState, NotificationKind, PushSubscriptionPayload } from "../types";
-import { EmptyState, NotificationRow, SectionTitle } from "../components/ui";
+import { EmptyState, NotificationRow } from "../components/ui";
 
 interface NotificationsScreenProps {
   state: CopulaState;
@@ -103,24 +103,23 @@ export function NotificationsScreen({
         <div className="page-head">
           <h1>알림</h1>
         </div>
+        <button
+          className="text-button notifications-read-all"
+          onClick={onMarkRead}
+          disabled={state.notifications.every((item) => item.read)}
+        >
+          <Check aria-hidden="true" />
+          모두 읽음
+        </button>
       </section>
 
-      <section className="section">
-        <SectionTitle
-          title="최근 알림"
-          action={
-            <button className="text-button" onClick={onMarkRead} disabled={state.notifications.every((item) => item.read)}>
-              <Check aria-hidden="true" />
-              모두 읽음
-            </button>
-          }
-        />
+      <section className="section notifications-section">
         <div className="filter-strip" role="group" aria-label="알림 필터">
           <FilterButton active={filter === "all"} label="전체" onClick={() => setFilter("all")} />
           <FilterButton active={filter === "unread"} label="읽지 않음" onClick={() => setFilter("unread")} />
           <FilterButton active={filter === "commitment"} label="약속" onClick={() => setFilter("commitment")} />
           <FilterButton active={filter === "calendar"} label="일정" onClick={() => setFilter("calendar")} />
-          <FilterButton active={filter === "message"} label="메시지" onClick={() => setFilter("message")} />
+          <FilterButton active={filter === "message"} label="Chat" onClick={() => setFilter("message")} />
           <FilterButton active={filter === "community"} label="copula" onClick={() => setFilter("community")} />
         </div>
         

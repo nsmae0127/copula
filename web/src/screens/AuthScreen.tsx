@@ -1,17 +1,18 @@
 import { useEffect, useRef, useState, type CSSProperties, type FocusEvent, type FormEvent, type ReactNode } from "react";
 import {
+  Apple,
   FileText,
   HelpCircle,
-  KeyRound,
   LogIn,
   Mail,
+  MessageCircle,
   RotateCcw,
   ShieldCheck,
   UserPlus,
   X,
   type LucideIcon
 } from "lucide-react";
-import type { AuthCredentials, DataBackend } from "../repositories/repository";
+import type { AuthCredentials, DataBackend, OAuthProvider } from "../repositories/repository";
 import { useDialogFocusTrap } from "../hooks/useDialogFocusTrap";
 
 type AuthPanel = "signIn" | "signUp" | "reset" | "terms" | "privacy" | "support" | null;
@@ -32,6 +33,8 @@ export function AuthScreen({
   pendingInviteCode,
   isLoading,
   onPasswordReset,
+  onLoadOAuthProviders,
+  onOAuthSignIn,
   onSignIn
 }: {
   backend: DataBackend;
@@ -39,6 +42,8 @@ export function AuthScreen({
   pendingInviteCode?: string | null;
   isLoading: boolean;
   onPasswordReset: (email: string) => Promise<void> | void;
+  onLoadOAuthProviders: () => Promise<OAuthProvider[]>;
+  onOAuthSignIn: (provider: OAuthProvider) => Promise<void> | void;
   onSignIn: (credentials?: AuthCredentials) => Promise<void> | void;
 }) {
   const isSupabase = backend === "supabase";
@@ -47,8 +52,49 @@ export function AuthScreen({
   const [authFormKey, setAuthFormKey] = useState(0);
   const [notice, setNotice] = useState<{ kind: "success" | "error"; message: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeOAuthProvider, setActiveOAuthProvider] = useState<OAuthProvider | null>(null);
+  const [availableOAuthProviders, setAvailableOAuthProviders] = useState<OAuthProvider[] | null>(null);
   const isBusy = isLoading || isSubmitting;
   const isNotice = Boolean(error?.includes("확인 이메일"));
+
+  useEffect(() => {
+    if (!isSupabase) return;
+    let cancelled = false;
+
+    void onLoadOAuthProviders()
+      .then((providers) => {
+        if (!cancelled) setAvailableOAuthProviders(providers);
+      })
+      .catch(() => {
+        if (!cancelled) setAvailableOAuthProviders([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isSupabase, onLoadOAuthProviders]);
+
+  function isOAuthAvailable(provider: OAuthProvider) {
+    return availableOAuthProviders?.includes(provider) === true;
+  }
+
+  async function startOAuth(provider: OAuthProvider) {
+    setNotice(null);
+    setActiveOAuthProvider(provider);
+    setIsSubmitting(true);
+
+    try {
+      await onOAuthSignIn(provider);
+    } catch (error) {
+      setNotice({
+        kind: "error",
+        message: error instanceof Error ? error.message : "간편 로그인을 시작하지 못했습니다."
+      });
+    } finally {
+      setIsSubmitting(false);
+      setActiveOAuthProvider(null);
+    }
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -116,6 +162,10 @@ export function AuthScreen({
 
   return (
     <main className="auth-screen">
+      <div className="auth-background-logo" aria-hidden="true">
+        <img src="/assets/logo-512.png" alt="" />
+      </div>
+
       <section className="auth-minimal" aria-label="Copula">
         {isLoading ? <span className="loading-spinner" aria-label="불러오는 중" /> : null}
 
@@ -127,48 +177,117 @@ export function AuthScreen({
         </div>
 
         <div className="auth-card">
-          <div className="auth-action-grid" aria-label="계정">
-            {isSupabase ? (
-              <>
+          {isSupabase ? (
+            <>
+              <div className="auth-card-heading">
+                <strong>간편 로그인</strong>
+                <span>자주 쓰는 계정으로 바로 시작하세요</span>
+              </div>
+
+              <div className="auth-social-grid" aria-label="간편 로그인">
                 <button
                   type="button"
-                  className="auth-luxury-button primary"
+                  className="auth-social-button is-google"
+                  onClick={() => void startOAuth("google")}
+                  disabled={isBusy || !isOAuthAvailable("google")}
+                  aria-busy={activeOAuthProvider === "google"}
+                >
+                  <span className="auth-provider-symbol is-google" aria-hidden="true">G</span>
+                  <span>Google</span>
+                  {availableOAuthProviders && !isOAuthAvailable("google") ? <small>준비 중</small> : null}
+                </button>
+                <button
+                  type="button"
+                  className="auth-social-button is-kakao"
+                  onClick={() => void startOAuth("kakao")}
+                  disabled={isBusy || !isOAuthAvailable("kakao")}
+                  aria-busy={activeOAuthProvider === "kakao"}
+                >
+                  <MessageCircle aria-hidden="true" />
+                  <span>Kakao</span>
+                  {availableOAuthProviders && !isOAuthAvailable("kakao") ? <small>준비 중</small> : null}
+                </button>
+                <button
+                  type="button"
+                  className="auth-social-button is-naver"
+                  disabled
+                  aria-label="Naver 로그인 준비 중"
+                >
+                  <span className="auth-provider-symbol is-naver" aria-hidden="true">N</span>
+                  <span>Naver</span>
+                  <small>준비 중</small>
+                </button>
+                <button
+                  type="button"
+                  className="auth-social-button is-apple"
+                  onClick={() => void startOAuth("apple")}
+                  disabled={isBusy || !isOAuthAvailable("apple")}
+                  aria-busy={activeOAuthProvider === "apple"}
+                >
+                  <Apple aria-hidden="true" />
+                  <span>Apple</span>
+                  {availableOAuthProviders && !isOAuthAvailable("apple") ? <small>준비 중</small> : null}
+                </button>
+              </div>
+
+              {error || notice || pendingInviteCode ? (
+                <div className="auth-entry-status">
+                  <InlineStatus
+                    error={error}
+                    isNotice={isNotice}
+                    notice={notice}
+                    pendingInviteCode={pendingInviteCode}
+                  />
+                </div>
+              ) : null}
+
+              <div className="auth-divider" aria-hidden="true">
+                <span />
+                <b>또는</b>
+                <span />
+              </div>
+
+              <div className="auth-email-actions" aria-label="이메일 계정">
+                <button
+                  type="button"
+                  className="auth-email-button primary"
                   onClick={() => openPanel("signIn")}
                   disabled={isBusy}
                 >
                   <LogIn aria-hidden="true" />
-                  <span>로그인</span>
+                  <span>이메일 로그인</span>
                 </button>
                 <button
                   type="button"
-                  className="auth-luxury-button secondary"
+                  className="auth-email-button secondary"
                   onClick={() => openPanel("signUp")}
                   disabled={isBusy}
                 >
                   <UserPlus aria-hidden="true" />
                   <span>회원가입</span>
                 </button>
-                <button
-                  type="button"
-                  className="auth-sub-link"
-                  onClick={() => openPanel("reset")}
-                  disabled={isBusy}
-                >
-                  비밀번호를 잊으셨나요?
-                </button>
-              </>
-            ) : (
+              </div>
+
               <button
                 type="button"
-                className="auth-luxury-button primary"
-                onClick={() => void onSignIn()}
+                className="auth-sub-link"
+                onClick={() => openPanel("reset")}
                 disabled={isBusy}
               >
-                <Mail aria-hidden="true" />
-                <span>데모 계정으로 로그인</span>
+                비밀번호를 잊으셨나요?
               </button>
-            )}
-          </div>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="auth-email-button primary is-demo"
+              onClick={() => void onSignIn()}
+              disabled={isBusy}
+            >
+              <Mail aria-hidden="true" />
+              <span>데모 계정으로 로그인</span>
+            </button>
+          )}
         </div>
 
         <nav className="auth-legal-text" aria-label="서비스 문서">
@@ -258,33 +377,6 @@ export function AuthScreen({
         </AuthPopup>
       ) : null}
     </main>
-  );
-}
-
-function ActionButton({
-  icon: Icon,
-  label,
-  variant = "primary",
-  disabled = false,
-  onClick
-}: {
-  icon: LucideIcon;
-  label: string;
-  variant?: "primary" | "secondary" | "tertiary";
-  disabled?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      className={`auth-action-button is-${variant}`}
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={label}
-    >
-      <Icon aria-hidden="true" className="auth-btn-icon" />
-      <span className="auth-btn-label">{label}</span>
-    </button>
   );
 }
 

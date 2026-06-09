@@ -348,6 +348,11 @@ export function App() {
           pendingInviteCode={pendingInviteCode}
           isLoading={!status.isHydrated}
           onPasswordReset={actions.resetPassword}
+          onLoadOAuthProviders={actions.getAvailableOAuthProviders}
+          onOAuthSignIn={async (provider) => {
+            setActionError(null);
+            await actions.signInWithOAuth(provider);
+          }}
           onSignIn={async (credentials) => {
             setActionError(null);
             try {

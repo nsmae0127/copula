@@ -375,6 +375,18 @@ export function useCopulaStore() {
     setState(withCommitmentReminders(normalizeState(seedState())));
   }
 
+  async function signInWithOAuth(...args: Parameters<NonNullable<typeof repository.signInWithOAuth>>) {
+    if (!repository.signInWithOAuth) {
+      throw new Error("간편 로그인을 사용할 수 없습니다.");
+    }
+
+    await repository.signInWithOAuth(...args);
+  }
+
+  async function getAvailableOAuthProviders() {
+    return repository.getAvailableOAuthProviders?.() ?? [];
+  }
+
   async function signOut() {
     if (repository.signOut) {
       await repository.signOut();
@@ -1917,6 +1929,8 @@ export function useCopulaStore() {
     },
     actions: {
       signIn,
+      getAvailableOAuthProviders,
+      signInWithOAuth,
       signOut,
       resetDemo,
       resetPassword,

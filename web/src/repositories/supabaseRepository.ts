@@ -25,7 +25,7 @@ import type {
   UserProfile
 } from "../types";
 import { createId, initials } from "../utils";
-import type { CopulaRepository } from "./repository";
+import type { CopulaRepository, OAuthProvider } from "./repository";
 
 type ProfileRow = {
   id: string;
@@ -800,50 +800,72 @@ export function createSupabaseRepository(): CopulaRepository {
     },
 
     async signIn(credentials) {
-      if (credentials) {
-        const email = credentials.email.trim();
-        const password = credentials.password;
+      if (!credentials) {
+        throw new Error("이메일과 비밀번호를 입력해 주세요.");
+      }
 
-        if (credentials.mode === "signUp") {
-          const displayName = credentials.displayName?.trim() || email.split("@")[0] || "New member";
-          const { data, error } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-              data: {
-                name: displayName
-              },
-              emailRedirectTo: window.location.origin
-            }
-          });
+      const email = credentials.email.trim();
+      const password = credentials.password;
 
-          if (error) {
-            throw new Error(readableSupabaseError(error.message));
-          }
-          if (!data.session) {
-            throw new Error("확인 이메일을 보냈습니다. 이메일 인증 후 로그인해 주세요.");
-          }
-          return;
-        }
-
-        const { error } = await supabase.auth.signInWithPassword({
+      if (credentials.mode === "signUp") {
+        const displayName = credentials.displayName?.trim() || email.split("@")[0] || "New member";
+        const { data, error } = await supabase.auth.signUp({
           email,
-          password
+          password,
+          options: {
+            data: {
+              name: displayName
+            },
+            emailRedirectTo: window.location.origin
+          }
         });
+
         if (error) {
           throw new Error(readableSupabaseError(error.message));
+        }
+        if (!data.session) {
+          throw new Error("확인 이메일을 보냈습니다. 이메일 인증 후 로그인해 주세요.");
         }
         return;
       }
 
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      if (error) {
+        throw new Error(readableSupabaseError(error.message));
+      }
+    },
+
+    async getAvailableOAuthProviders() {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, "");
+      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      if (!supabaseUrl || !anonKey) return [];
+
+      const response = await fetch(`${supabaseUrl}/auth/v1/settings`, {
+        headers: {
+          apikey: anonKey
+        }
+      });
+      if (!response.ok) {
+        throw new Error("간편 로그인 설정을 확인하지 못했습니다.");
+      }
+
+      const settings = await response.json() as { external?: Partial<Record<OAuthProvider, boolean>> };
+      const providers: OAuthProvider[] = ["google", "kakao", "apple"];
+      return providers.filter((provider) => settings.external?.[provider] === true);
+    },
+
+    async signInWithOAuth(provider) {
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: "apple",
+        provider,
         options: {
           redirectTo: window.location.origin
         }
       });
       if (error) {
-        throw new Error(error.message);
+        throw new Error(readableSupabaseError(error.message));
       }
     },
 

@@ -1,5 +1,5 @@
 export type Role = "owner" | "admin" | "member";
-export type ViewName = "home" | "community" | "messages" | "notifications" | "profile";
+export type ViewName = "home" | "community" | "today" | "messages" | "notifications" | "profile";
 export type CommunityModule =
   | "feed"
   | "messages"

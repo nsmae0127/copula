@@ -50,7 +50,6 @@ export function HomeScreen({
 }: HomeScreenProps) {
   const currentUserId = state.currentUser?.id ?? "";
   const hasCommunities = state.communities.length > 0;
-  const today = Date.now();
   const todayKey = toDateKey(new Date());
 
   const [activeStoryCommunity, setActiveStoryCommunity] = useState<Community | null>(null);
@@ -145,12 +144,10 @@ export function HomeScreen({
     })
   ] : [];
 
-  // 오늘과 시간 차이가 가장 적은 순으로 정렬 (절대값 정렬)
-  const sortedFeed = allFeedItems.sort((a, b) => {
-    const diffA = Math.abs(a.sortDate.getTime() - today);
-    const diffB = Math.abs(b.sortDate.getTime() - today);
-    return diffA - diffB;
-  });
+  // Home은 모든 Copula의 최신 활동을 시간순으로 모아 보여준다.
+  const sortedFeed = allFeedItems.sort(
+    (a, b) => new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime()
+  );
 
   return (
     <div 
@@ -368,7 +365,7 @@ function renderFeedCard(
       <header className="feed-card-header">
         <div className="feed-card-community">
           <div className="community-avatar-mini">
-            {community.coverUrl ? <img src={community.coverUrl} alt="" /> : initial}
+            {community.coverUrl ? <img src={community.coverUrl} alt="" loading="lazy" decoding="async" /> : initial}
           </div>
           <div className="community-meta">
             <span className="community-name-line">
@@ -433,9 +430,9 @@ function renderFeedCard(
             {albumCoverItem?.mediaUrl ? (
               <div className="album-media-container">
                 {albumCoverItem.kind === "video" ? (
-                  <video src={albumCoverItem.mediaUrl} muted playsInline loop autoPlay className="feed-album-media" />
+                  <video src={albumCoverItem.mediaUrl} muted playsInline loop autoPlay preload="metadata" className="feed-album-media" />
                 ) : (
-                  <img src={albumCoverItem.mediaUrl} alt={albumCoverItem.title} className="feed-album-media" />
+                  <img src={albumCoverItem.mediaUrl} alt={albumCoverItem.title} loading="lazy" decoding="async" className="feed-album-media" />
                 )}
               </div>
             ) : (

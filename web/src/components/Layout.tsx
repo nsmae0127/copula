@@ -3,7 +3,8 @@ import {
   Bell,
   Blocks,
   CalendarDays,
-  CircleDashed,
+  CalendarClock,
+  CalendarPlus,
   Home,
   Image,
   KeyRound,
@@ -311,7 +312,7 @@ export function Layout({
             <>
               <div className="plus-menu-backdrop" onClick={() => setIsPlusMenuOpen(false)} />
               <div className="plus-menu-popover">
-                {activeView === "community" && selectedCommunity ? (
+                {(activeView === "community" || activeView === "today") && selectedCommunity ? (
                   <div className="plus-menu-section">
                     <button
                       type="button"
@@ -425,18 +426,20 @@ export function Layout({
           <span className="nav-label nav-label-long">Messages</span>
         </button>
 
-        {/* 추후 기능을 위한 빈 슬롯 */}
+        {/* Today */}
         <button
-          className="nav-item nav-placeholder-button"
-          aria-label="준비 중"
+          className={`nav-item ${activeView === "today" ? "is-active" : ""}`}
+          aria-label="오늘"
           onClick={() => {
             playTapSound();
             setIsPlusMenuOpen(false);
             setIsAccountMenuOpen(false);
+            onViewChange("today");
           }}
-          title="준비 중"
+          aria-current={activeView === "today" ? "page" : undefined}
         >
-          <span className="nav-icon-wrap"><CircleDashed aria-hidden="true" /></span>
+          <span className="nav-icon-wrap"><CalendarClock aria-hidden="true" /></span>
+          <span className="nav-label">Today</span>
         </button>
       </nav>
     </div>
@@ -482,6 +485,15 @@ function getPlusButtonConfig(activeView: ViewName, hasSelectedCommunity: boolean
       label: "copula 참여/생성",
       showBadge: false,
       tone: "profile"
+    };
+  }
+
+  if (activeView === "today") {
+    return {
+      icon: CalendarPlus,
+      label: "오늘 일정 추가",
+      showBadge: false,
+      tone: "content"
     };
   }
 

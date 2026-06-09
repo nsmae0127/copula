@@ -24,6 +24,9 @@ const NotificationsScreen = lazy(() =>
 const ProfileScreen = lazy(() =>
   import("./screens/ProfileScreen").then((module) => ({ default: module.ProfileScreen }))
 );
+const TodayScreen = lazy(() =>
+  import("./screens/TodayScreen").then((module) => ({ default: module.TodayScreen }))
+);
 
 const VIEW_KEY = "copula.react.activeView";
 const MODULE_KEY = "copula.react.activeModule";
@@ -71,6 +74,11 @@ interface ToastState {
   tone: "success" | "error";
 }
 
+interface CopulaHistoryState {
+  copula: true;
+  depth: number;
+}
+
 export function App() {
   const { state, selectedCommunity, status, actions } = useCopulaStore();
   const [activeView, setActiveView] = useState<ViewName>(
@@ -113,6 +121,25 @@ export function App() {
   useEffect(() => {
     localStorage.setItem(MODULE_KEY, activeModule);
   }, [activeModule]);
+
+  useEffect(() => {
+    const currentState = window.history.state as CopulaHistoryState | null;
+    if (!currentState?.copula) {
+      window.history.replaceState(
+        { ...(currentState ?? {}), copula: true, depth: 0 },
+        "",
+        window.location.href
+      );
+    }
+
+    function handlePopState() {
+      const intent = readInitialRouteIntent() ?? { view: "home" as ViewName };
+      startViewTransition(() => applyRouteIntent(intent));
+    }
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [state.communities]);
 
   useEffect(() => {
     const urlInviteCode = readInviteCodeFromUrl();
@@ -175,7 +202,7 @@ export function App() {
 
       if (targetCommunity) {
         hasHandledRouteIntent.current = true;
-        openCommunity(targetCommunity.id, intent.module ?? "feed");
+        openCommunity(targetCommunity.id, intent.module ?? "feed", undefined, false);
       }
       return;
     }
@@ -187,7 +214,7 @@ export function App() {
         : null;
 
       hasHandledRouteIntent.current = true;
-      openMessages(targetCommunity?.id ?? null);
+      openMessages(targetCommunity?.id ?? null, false);
       return;
     }
 
@@ -244,25 +271,69 @@ export function App() {
     setViewerTarget(null);
   }
 
+  function applyRouteIntent(intent: RouteIntent) {
+    if (intent.view === "community") {
+      const targetCommunity = intent.communityId
+        ? state.communities.find((community) => community.id === intent.communityId)
+        : null;
+      setActiveView("community");
+      setActiveModule(intent.module ?? "feed");
+      setSelectedAlbumId(null);
+      setSelectedMessageCommunityId(null);
+      setIsCommunityListOpen(!targetCommunity);
+      if (targetCommunity) actions.selectCommunity(targetCommunity.id);
+      return;
+    }
+
+    if (intent.view === "messages") {
+      const targetCommunity = intent.communityId
+        ? state.communities.find((community) => community.id === intent.communityId)
+        : null;
+      setActiveView("messages");
+      setSelectedMessageCommunityId(targetCommunity?.id ?? null);
+      setSelectedAlbumId(null);
+      if (targetCommunity) actions.selectCommunity(targetCommunity.id);
+      return;
+    }
+
+    setActiveView(intent.view);
+    setActiveModule("feed");
+    setSelectedAlbumId(null);
+    setSelectedMessageCommunityId(null);
+    setIsCommunityListOpen(true);
+  }
+
   function navigateBack() {
+    const historyState = window.history.state as CopulaHistoryState | null;
+    if (historyState?.copula && historyState.depth > 0) {
+      window.history.back();
+      return;
+    }
+
     startViewTransition(() => {
       if (activeView === "messages" && selectedMessageCommunityId) {
+        replaceRouteIntent({ view: "messages" });
         setSelectedMessageCommunityId(null);
         return;
       }
 
       if (activeView === "community" && activeModule !== "feed") {
+        if (selectedCommunity) {
+          replaceRouteIntent({ view: "community", communityId: selectedCommunity.id, module: "feed" });
+        }
         setActiveModule("feed");
         setSelectedAlbumId(null);
         return;
       }
 
       if (activeView === "community" && !isCommunityListOpen) {
+        replaceRouteIntent({ view: "community" });
         setIsCommunityListOpen(true);
         return;
       }
 
       if (activeView !== "home") {
+        replaceRouteIntent({ view: "home" });
         resetNavigationToHome();
       }
     });
@@ -291,12 +362,20 @@ export function App() {
     );
   }
 
-  function openCommunity(communityId: string, module: CommunityModule = "feed", albumId?: string) {
-    actions.selectCommunity(communityId);
+  function openCommunity(
+    communityId: string,
+    module: CommunityModule = "feed",
+    albumId?: string,
+    writeHistory = true
+  ) {
     if (module === "messages") {
-      openMessages(communityId);
+      openMessages(communityId, writeHistory);
       return;
     }
+    if (writeHistory) {
+      pushRouteIntent({ view: "community", communityId, module });
+    }
+    actions.selectCommunity(communityId);
     setActiveView("community");
     setIsCommunityListOpen(false);
     setActiveModule(module);
@@ -304,7 +383,10 @@ export function App() {
     setSelectedMessageCommunityId(null);
   }
 
-  function openMessages(communityId?: string | null) {
+  function openMessages(communityId?: string | null, writeHistory = true) {
+    if (writeHistory) {
+      pushRouteIntent({ view: "messages", communityId: communityId ?? undefined });
+    }
     if (communityId) {
       actions.selectCommunity(communityId);
       markUnreadMessagesForCommunity(communityId);
@@ -597,18 +679,18 @@ export function App() {
       return (
         <CommunityScreen
           communities={state.communities}
+          notifications={state.notifications}
           community={selectedCommunity}
           currentUserId={state.currentUser?.id ?? ""}
           showCommunityList={isCommunityListOpen}
           activeModule={activeModule}
           selectedAlbumId={selectedAlbumId}
           onSelectCommunity={(communityId) => startViewTransition(() => openCommunity(communityId, activeModule))}
-          onBackToList={() => startViewTransition(() => {
-            setActiveModule("feed");
-            setSelectedAlbumId(null);
-            setIsCommunityListOpen(true);
-          })}
+          onBackToList={navigateBack}
           onModuleChange={(module) => startViewTransition(() => {
+            if (selectedCommunity) {
+              pushRouteIntent({ view: "community", communityId: selectedCommunity.id, module });
+            }
             setActiveModule(module);
           })}
           onSelectAlbum={setSelectedAlbumId}
@@ -710,11 +792,12 @@ export function App() {
           selectedCommunityId={selectedMessageCommunityId}
           notifications={state.notifications}
           onSelectConversation={(communityId) => {
+            pushRouteIntent({ view: "messages", communityId });
             markUnreadMessagesForCommunity(communityId);
             setSelectedMessageCommunityId(communityId);
             actions.selectCommunity(communityId);
           }}
-          onBackToList={() => setSelectedMessageCommunityId(null)}
+          onBackToList={navigateBack}
           onSendMessage={async (communityId, body) => {
             await actions.sendMessage(communityId, body);
           }}
@@ -774,6 +857,19 @@ export function App() {
       );
     }
 
+    if (activeView === "today") {
+      return (
+        <TodayScreen
+          state={state}
+          onOpenCommunityModule={(communityId, module) => startViewTransition(() => openCommunity(communityId, module))}
+          onOpenOneSecondUpload={(communityId) => {
+            actions.selectCommunity(communityId);
+            setModal({ type: "1sUpload" });
+          }}
+        />
+      );
+    }
+
     return (
       <HomeScreen
         state={state}
@@ -804,6 +900,7 @@ export function App() {
         unreadMessageCount={state.notifications.filter((item) => item.kind === "message" && !item.read).length}
         unreadNotificationCount={state.notifications.filter((item) => !item.read).length}
         onViewChange={(view) => startViewTransition(() => {
+          pushRouteIntent({ view });
           setActiveView(view);
           if (view === "community") {
             setActiveModule("feed");
@@ -814,7 +911,10 @@ export function App() {
             setSelectedMessageCommunityId(null);
           }
         })}
-        onOpenNotifications={() => startViewTransition(() => setActiveView("notifications"))}
+        onOpenNotifications={() => startViewTransition(() => {
+          pushRouteIntent({ view: "notifications" });
+          setActiveView("notifications");
+        })}
         onOpenNotificationSettings={() => setNotificationSettingsRequestKey((current) => current + 1)}
         onBack={navigateBack}
         onOpenJoin={() => openJoinModal()}
@@ -850,8 +950,15 @@ export function App() {
             ) ?? false}
             onClose={closeModal}
             onJoin={actions.joinCommunity}
-            onCreateCommunity={async (name, description) => {
-              await actions.createCommunity(name, description);
+            onCreateCommunity={async (name, description, options) => {
+              const communityId = await actions.createCommunity(name, description, options);
+              if (communityId && options.contentModules.length) {
+                await actions.setCommunityContentModules(communityId, options.contentModules);
+              }
+              if (communityId) {
+                pushRouteIntent({ view: "community", communityId, module: "feed" });
+              }
+              setIsCommunityListOpen(false);
               showToast("copula를 만들었습니다.");
             }}
             onUpdateCommunity={async (communityId, input) => {
@@ -934,6 +1041,7 @@ export function App() {
             onJoinedCommunity={(result) => {
               setActiveView("community");
               setActiveModule("feed");
+              setIsCommunityListOpen(false);
               if (result?.status === "alreadyJoined") {
                 showToast(`${result.communityName}에 이미 참여 중입니다.`);
                 setPendingInviteCode(null);
@@ -999,9 +1107,12 @@ function FullScreenFallback() {
 
 function ScreenFallback() {
   return (
-    <div className="screen-fallback card" role="status" aria-live="polite">
-      <span className="loading-spinner" aria-hidden="true" />
-      <strong>화면을 불러오고 있습니다.</strong>
+    <div className="screen-fallback skeleton-screen" role="status" aria-live="polite">
+      <span className="sr-only">화면을 불러오고 있습니다.</span>
+      <span className="skeleton-block skeleton-title" aria-hidden="true" />
+      <span className="skeleton-block skeleton-banner" aria-hidden="true" />
+      <span className="skeleton-block skeleton-row" aria-hidden="true" />
+      <span className="skeleton-block skeleton-row is-short" aria-hidden="true" />
     </div>
   );
 }
@@ -1047,8 +1158,55 @@ function readInitialRouteIntent(): RouteIntent | null {
   };
 }
 
+function pushRouteIntent(intent: RouteIntent) {
+  const nextLocation = routeUrl(intent);
+  const currentLocation = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  if (nextLocation === currentLocation) return;
+
+  const currentState = window.history.state as Partial<CopulaHistoryState> | null;
+  window.history.pushState(
+    {
+      ...(currentState ?? {}),
+      copula: true,
+      depth: (currentState?.depth ?? 0) + 1
+    },
+    "",
+    nextLocation
+  );
+}
+
+function replaceRouteIntent(intent: RouteIntent) {
+  const url = routeUrl(intent);
+  const currentState = window.history.state as Partial<CopulaHistoryState> | null;
+  window.history.replaceState(
+    {
+      ...(currentState ?? {}),
+      copula: true,
+      depth: currentState?.depth ?? 0
+    },
+    "",
+    url
+  );
+}
+
+function routeUrl(intent: RouteIntent) {
+  const url = new URL(window.location.href);
+  url.searchParams.set(ROUTE_VIEW_PARAM, intent.view);
+  if (intent.communityId) {
+    url.searchParams.set(ROUTE_COMMUNITY_PARAM, intent.communityId);
+  } else {
+    url.searchParams.delete(ROUTE_COMMUNITY_PARAM);
+  }
+  if (intent.module && intent.view === "community") {
+    url.searchParams.set(ROUTE_MODULE_PARAM, intent.module);
+  } else {
+    url.searchParams.delete(ROUTE_MODULE_PARAM);
+  }
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
 function isViewName(value: string | null): value is ViewName {
-  return value === "home" || value === "community" || value === "messages" || value === "notifications" || value === "profile";
+  return value === "home" || value === "community" || value === "today" || value === "messages" || value === "notifications" || value === "profile";
 }
 
 function isCommunityModule(value: string | null): value is CommunityModule {

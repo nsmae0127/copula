@@ -28,6 +28,7 @@ import type {
   AlbumItemUpdateInput,
   CalendarEvent,
   Community,
+  CommunityModule,
   DDayItem,
   JoinResult,
   ModalType,
@@ -54,7 +55,11 @@ interface ModalProps {
   canDeleteCommunity: boolean;
   onClose: () => void;
   onJoin: (code: string) => Promise<JoinResult>;
-  onCreateCommunity: (name: string, description: string) => Promise<void> | void;
+  onCreateCommunity: (
+    name: string,
+    description: string,
+    options: { accent: string; contentModules: CommunityModule[] }
+  ) => Promise<void> | void;
   onUpdateCommunity: (
     communityId: string,
     input: { name: string; description: string; accent: string; coverFile?: File; coverUrl?: string | null }
@@ -130,25 +135,33 @@ const communityPresets = [
     icon: Heart,
     label: "가족",
     name: "가족 모임",
-    description: "가족 일정과 약속을 함께 관리합니다."
+    description: "가족 일정과 약속을 함께 관리합니다.",
+    accent: "#f6a8be",
+    modules: ["calendar", "albums", "1s"] as CommunityModule[]
   },
   {
     icon: Plane,
     label: "여행",
     name: "여행 준비",
-    description: "일정, 사진, 준비할 일을 한곳에 모읍니다."
+    description: "일정, 사진, 준비할 일을 한곳에 모읍니다.",
+    accent: "#6fb7a5",
+    modules: ["calendar", "commitments", "albums"] as CommunityModule[]
   },
   {
     icon: Users,
     label: "친구",
     name: "친구 모임",
-    description: "모임 일정과 추억을 함께 기록합니다."
+    description: "모임 일정과 추억을 함께 기록합니다.",
+    accent: "#f0717a",
+    modules: ["calendar", "albums", "1s"] as CommunityModule[]
   },
   {
     icon: Briefcase,
     label: "팀",
     name: "프로젝트 팀",
-    description: "역할, 일정, 약속을 관계별로 정리합니다."
+    description: "역할, 일정, 약속을 관계별로 정리합니다.",
+    accent: "#8c74ba",
+    modules: ["calendar", "commitments", "relationships"] as CommunityModule[]
   }
 ];
 
@@ -214,7 +227,13 @@ export function Modal({
           setIsSubmitting(false);
           return;
         }
-        await onCreateCommunity(name, String(data.description ?? ""));
+        const contentModules = new FormData(event.currentTarget)
+          .getAll("contentModules")
+          .filter((value): value is CommunityModule => typeof value === "string") as CommunityModule[];
+        await onCreateCommunity(name, String(data.description ?? ""), {
+          accent: String(data.accent ?? accentOptions[0].value),
+          contentModules
+        });
         onJoinedCommunity();
         onClose();
         return;
@@ -445,6 +464,13 @@ export function Modal({
       descriptionInput.value = preset.description;
       descriptionInput.dispatchEvent(new Event("input", { bubbles: true }));
     }
+    form.querySelectorAll<HTMLInputElement>('input[name="contentModules"]').forEach((input) => {
+      input.checked = preset.modules.includes(input.value as CommunityModule);
+    });
+    const accentInput = form.querySelector<HTMLInputElement>(
+      `input[name="accent"][value="${preset.accent}"]`
+    );
+    if (accentInput) accentInput.checked = true;
   }
 
   const ModalIcon = modalIcon(modal.type);
@@ -531,6 +557,47 @@ function renderFields(
           <FieldLabel icon={FileText} label="설명" />
           <textarea name="description" placeholder="선택 입력" />
         </label>
+        <fieldset className="starter-content-field">
+          <legend><FieldLabel icon={Sparkles} label="시작 콘텐츠" /></legend>
+          <div className="starter-content-grid">
+            {[
+              { id: "calendar", label: "일정", icon: CalendarDays },
+              { id: "commitments", label: "할 일", icon: Flag },
+              { id: "relationships", label: "관계", icon: Users },
+              { id: "albums", label: "앨범", icon: Image },
+              { id: "1s", label: "1s", icon: Video }
+            ].map((item) => (
+              <label key={item.id} className="starter-content-option">
+                <input
+                  name="contentModules"
+                  type="checkbox"
+                  value={item.id}
+                  defaultChecked={item.id === "calendar" || item.id === "albums"}
+                />
+                <span>
+                  <item.icon aria-hidden="true" />
+                  {item.label}
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <fieldset className="swatch-field">
+          <legend><FieldLabel icon={Palette} label="대표 색상" /></legend>
+          <div className="swatch-grid">
+            {accentOptions.map((accent) => (
+              <label key={accent.value} className="swatch-option" title={accent.label}>
+                <input
+                  name="accent"
+                  type="radio"
+                  value={accent.value}
+                  defaultChecked={accent.value === accentOptions[0].value}
+                />
+                <span style={{ "--swatch": accent.value } as CSSProperties} />
+              </label>
+            ))}
+          </div>
+        </fieldset>
       </>
     );
   }

@@ -561,13 +561,17 @@ export function useCopulaStore() {
     return { status: "joined", communityName: joined.name };
   }
 
-  async function createCommunity(name: string, description: string) {
+  async function createCommunity(
+    name: string,
+    description: string,
+    options?: { accent?: string; contentModules?: CommunityModule[] }
+  ) {
     if (repository.createCommunity) {
       const trimmedName = name.trim();
       const community = await repository.createCommunity({
         name: trimmedName,
         description: description.trim(),
-        accent: accentColors[state.communities.length % accentColors.length]
+        accent: options?.accent ?? accentColors[state.communities.length % accentColors.length]
       });
 
       setState((previous) =>
@@ -585,21 +589,22 @@ export function useCopulaStore() {
           `초대 코드 ${community.inviteCode}를 사용할 수 있습니다.`
         )
       );
-      return;
+      return community.id;
     }
 
+    const nextCommunityId = createId("community");
     setState((previous) => {
       const currentUser = previous.currentUser ?? demoUser;
       const trimmedName = name.trim();
       const community: Community = {
-        id: createId("community"),
+        id: nextCommunityId,
         name: trimmedName,
         description: description.trim(),
         inviteCode: makeInviteCode(trimmedName),
-        accent: accentColors[previous.communities.length % accentColors.length],
+        accent: options?.accent ?? accentColors[previous.communities.length % accentColors.length],
         coverUrl: null,
         createdAt: new Date().toISOString(),
-        contentModules: [],
+        contentModules: normalizeCommunityContentModules(options?.contentModules),
         members: [memberFromUser(currentUser, "owner")],
         events: [],
         albums: [],
@@ -631,6 +636,7 @@ export function useCopulaStore() {
         `초대 코드 ${community.inviteCode}를 사용할 수 있습니다.`
       );
     });
+    return nextCommunityId;
   }
 
   async function updateCommunityProfile(

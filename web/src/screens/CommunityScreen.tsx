@@ -12,6 +12,7 @@ import {
   KeyRound,
   ListTodo,
   MessageCircle,
+  MoreHorizontal,
   type LucideIcon,
   Megaphone,
   Network,
@@ -28,7 +29,7 @@ import {
   Wallet
 } from "lucide-react";
 import { getKoreanHoliday } from "../holidays";
-import type { Album, CalendarEvent, Community, CommunityModule, Role, VisibilityScope, OneSecondLog } from "../types";
+import type { Album, CalendarEvent, Community, CommunityModule, CopulaNotification, Role, VisibilityScope, OneSecondLog } from "../types";
 import { OneSecondPlayerOverlay } from "../components/OneSecondPlayerOverlay";
 import { ddayLabel, ddaySortValue, formatDateTime, getAlbumCoverItem, getLatestAlbumItem, roleLabel, triggerConfetti } from "../utils";
 import { playChimeSound } from "../utils/soundEffects";
@@ -48,6 +49,7 @@ const OneSecondModule = lazy(() =>
 
 interface CommunityScreenProps {
   communities: Community[];
+  notifications: CopulaNotification[];
   community: Community | null;
   currentUserId: string;
   showCommunityList: boolean;
@@ -185,6 +187,7 @@ const FUTURE_CONTENT_DEFINITIONS: FutureContentDefinition[] = [
 
 export function CommunityScreen({
   communities,
+  notifications,
   community: rawCommunity,
   currentUserId,
   showCommunityList,
@@ -242,6 +245,7 @@ export function CommunityScreen({
     return (
       <CommunityDirectory
         communities={joinedCommunities}
+        notifications={notifications}
         onSelectCommunity={onSelectCommunity}
         onOpenJoin={onOpenJoin}
         onOpenCreateCommunity={onOpenCreateCommunity}
@@ -427,11 +431,13 @@ interface CommunityListActivity {
 
 function CommunityDirectory({
   communities,
+  notifications,
   onSelectCommunity,
   onOpenJoin,
   onOpenCreateCommunity
 }: {
   communities: Community[];
+  notifications: CopulaNotification[];
   onSelectCommunity: (communityId: string) => void;
   onOpenJoin: () => void;
   onOpenCreateCommunity: () => void;
@@ -476,6 +482,10 @@ function CommunityDirectory({
         {communities.map((community) => {
           const activity = getCommunityLatestActivity(community);
           const bannerUrl = getCommunityBannerUrl(community);
+          const unreadCount = notifications.filter(
+            (item) => item.communityId === community.id && !item.read
+          ).length;
+          const pinnedNotice = sortNotices(community.notices).find((notice) => notice.pinned);
           const ActivityIcon = activity.icon;
           return (
             <button
@@ -486,7 +496,7 @@ function CommunityDirectory({
               style={{ "--accent": community.accent } as CSSProperties}
             >
               <span className="copula-directory-media">
-                <img src={bannerUrl} alt="" />
+                <img src={bannerUrl} alt="" loading="lazy" decoding="async" />
                 <span className="copula-directory-shade" />
               </span>
               <span className="copula-directory-card-top">
@@ -497,6 +507,12 @@ function CommunityDirectory({
                 </span>
                 <time dateTime={activity.at}>{formatCommunityRelativeTime(activity.at)}</time>
               </span>
+              {(pinnedNotice || unreadCount > 0) ? (
+                <span className="copula-directory-status" aria-label={`${pinnedNotice ? "고정 공지 있음" : ""}${unreadCount ? ` 읽지 않은 활동 ${unreadCount}개` : ""}`}>
+                  {pinnedNotice ? <Megaphone aria-hidden="true" /> : null}
+                  {unreadCount > 0 ? <b>{unreadCount > 9 ? "9+" : unreadCount}</b> : null}
+                </span>
+              ) : null}
               <span className="copula-directory-main">
                 <strong>{community.name}</strong>
                 <span className="copula-directory-activity">
@@ -683,6 +699,7 @@ function CommunityHeroCard({
   onCopyInviteCode: () => void;
 }) {
   const primaryNotice = sortNotices(community.notices)[0];
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
     <div
@@ -698,27 +715,48 @@ function CommunityHeroCard({
           <div className="page-head">
             <div className="community-title-line">
               <h1>{community.name}</h1>
-              <button
-                type="button"
-                className="community-invite-code"
-                onClick={onCopyInviteCode}
-                aria-label={`초대 코드 ${community.inviteCode} 공유`}
-                title="초대 링크 공유"
-              >
-                {community.inviteCode}
-              </button>
             </div>
             <p className="muted">{community.description || "소개가 아직 없습니다."}</p>
           </div>
           <div className="community-hero-actions">
-            {canManageContent ? (
-              <button className="icon-button" onClick={onOpenCommunitySettings} aria-label="copula 설정" title="copula 설정">
-                <Settings aria-hidden="true" />
-              </button>
-            ) : null}
-            <button className="icon-button" onClick={onCopyInviteCode} aria-label="초대 링크 공유" title="초대 링크 공유">
-              <Share2 aria-hidden="true" />
+            <button
+              className="icon-button"
+              type="button"
+              onClick={() => setIsMenuOpen((current) => !current)}
+              aria-label="Copula 메뉴"
+              aria-expanded={isMenuOpen}
+              title="Copula 메뉴"
+            >
+              <MoreHorizontal aria-hidden="true" />
             </button>
+            {isMenuOpen ? (
+              <>
+                <button
+                  className="community-hero-menu-backdrop"
+                  type="button"
+                  aria-label="메뉴 닫기"
+                  onClick={() => setIsMenuOpen(false)}
+                />
+                <div className="community-hero-menu">
+                  <button type="button" onClick={() => {
+                    setIsMenuOpen(false);
+                    onCopyInviteCode();
+                  }}>
+                    <Share2 aria-hidden="true" />
+                    초대 링크 공유
+                  </button>
+                  {canManageContent ? (
+                    <button type="button" onClick={() => {
+                      setIsMenuOpen(false);
+                      onOpenCommunitySettings();
+                    }}>
+                      <Settings aria-hidden="true" />
+                      Copula 설정
+                    </button>
+                  ) : null}
+                </div>
+              </>
+            ) : null}
           </div>
         </div>
         <div className="community-hero-meta">
@@ -788,19 +826,17 @@ function CommunityHomePanel({
   onOpenOneSecondUpload: () => void;
   onCopyInviteCode: () => void;
 }) {
-  const todayScheduleCount = countTodayScheduleItems(community);
-  const openCommitmentCount = community.commitments.filter((item) => item.status === "open").length;
-  const todaysVlogCount = (community.oneSecondLogs || []).filter((log) => isSameDate(log.createdAt, new Date())).length;
-  const latestAlbum = [...community.albums]
-    .sort((a, b) => new Date(getLatestAlbumItem(b)?.createdAt ?? b.createdAt).getTime() - new Date(getLatestAlbumItem(a)?.createdAt ?? a.createdAt).getTime())[0];
   const isStarter = isStarterCommunity(community);
+  const activeDefinitions = OPTIONAL_CONTENT_DEFINITIONS.filter((definition) =>
+    enabledContentModules.includes(definition.module as OptionalContentModule)
+  );
 
   return (
     <section className="copula-home-panel" aria-label="copula 홈">
       <div className="copula-home-head">
         <div>
-          <span>{community.members.length}명 함께</span>
-          <h2>오늘</h2>
+          <span>사용 중</span>
+          <h2>콘텐츠</h2>
         </div>
         <button
           type="button"
@@ -822,40 +858,22 @@ function CommunityHomePanel({
           onCopyInviteCode={onCopyInviteCode}
         />
       ) : (
-        <>
-          <div className="copula-today-grid" aria-label="오늘 요약">
-            <TodayMetricButton icon={CalendarDays} label="일정" value={todayScheduleCount} helper="오늘" onClick={() => onModuleChange("calendar")} />
-            <TodayMetricButton icon={ListTodo} label="할 일" value={openCommitmentCount} helper="진행" onClick={() => onModuleChange("commitments")} />
-            <TodayMetricButton
-              icon={Video}
-              label="오늘 1s"
-              value={todaysVlogCount ? "완료" : "미기록"}
-              helper={todaysVlogCount ? `${todaysVlogCount}개` : "탭해서 기록"}
-              tone={todaysVlogCount ? "done" : "missing"}
-              onClick={() => onModuleChange("1s")}
-            />
-            <TodayMetricButton icon={Image} label="앨범" value={latestAlbum ? latestAlbum.title : "없음"} helper={latestAlbum ? `${latestAlbum.items.length}개` : "최근"} onClick={() => onModuleChange("albums")} />
-          </div>
-
-          <div className="copula-action-row" aria-label="빠른 행동">
-            <button type="button" onClick={() => onOpenEvent()}>
-              <CalendarDays aria-hidden="true" />
-              <span>일정</span>
-            </button>
-            <button type="button" onClick={onOpenAlbum}>
-              <Image aria-hidden="true" />
-              <span>앨범</span>
-            </button>
-            <button type="button" onClick={onOpenOneSecondUpload}>
-              <Video aria-hidden="true" />
-              <span>오늘 1s</span>
-            </button>
-            <button type="button" onClick={onCopyInviteCode}>
-              <Users aria-hidden="true" />
-              <span>초대</span>
-            </button>
-          </div>
-        </>
+        <div className="copula-enabled-content" aria-label="사용 중인 콘텐츠">
+          {activeDefinitions.map((definition) => {
+            const Icon = definition.icon;
+            return (
+              <button
+                key={definition.module}
+                type="button"
+                onClick={() => onModuleChange(definition.module)}
+              >
+                <span><Icon aria-hidden="true" /></span>
+                <strong>{definition.label}</strong>
+                <small>{formatContentModuleCount(getContentModuleCount(community, definition.module))}</small>
+              </button>
+            );
+          })}
+        </div>
       )}
 
       {isContentManagerOpen ? (
@@ -869,31 +887,6 @@ function CommunityHomePanel({
         />
       ) : null}
     </section>
-  );
-}
-
-function TodayMetricButton({
-  icon: Icon,
-  label,
-  value,
-  helper,
-  tone,
-  onClick
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: number | string;
-  helper: string;
-  tone?: "missing" | "done";
-  onClick: () => void;
-}) {
-  return (
-    <button type="button" className={`today-metric-button ${tone ? `is-${tone}` : ""}`} onClick={onClick}>
-      <Icon aria-hidden="true" />
-      <span>{label}</span>
-      <strong>{value}</strong>
-      <small>{helper}</small>
-    </button>
   );
 }
 
@@ -1250,10 +1243,12 @@ function FeedModule({
   onModuleChange: (module: CommunityModule) => void;
 }) {
   const [activeFilter, setActiveFilter] = useState<CopulaContentFilter>("all");
+  const [showAll, setShowAll] = useState(false);
   const contentItems = buildCopulaContentItems(community);
   const filteredItems = activeFilter === "all"
     ? contentItems
     : contentItems.filter((item) => item.filter === activeFilter);
+  const visibleItems = showAll ? filteredItems : filteredItems.slice(0, 3);
   const filters: Array<{ id: CopulaContentFilter; label: string; count: number }> = [
     { id: "all", label: "전체", count: contentItems.length },
     { id: "notice", label: "공지", count: contentItems.filter((item) => item.filter === "notice").length },
@@ -1268,10 +1263,18 @@ function FeedModule({
       <div className="copula-content-head">
         <div>
           <h2>최근 활동</h2>
-          <span>{contentItems.length}개 항목</span>
+          <span>{showAll ? `${contentItems.length}개 항목` : "최신 3개"}</span>
         </div>
+        {contentItems.length > 3 ? (
+          <button className="text-button" type="button" onClick={() => {
+            setShowAll((current) => !current);
+            if (showAll) setActiveFilter("all");
+          }}>
+            {showAll ? "접기" : "전체 보기"}
+          </button>
+        ) : null}
       </div>
-      <div className="copula-filter-row" role="tablist" aria-label="콘텐츠 필터">
+      {showAll ? <div className="copula-filter-row" role="tablist" aria-label="콘텐츠 필터">
         {filters.map((filter) => (
           <button
             key={filter.id}
@@ -1285,10 +1288,10 @@ function FeedModule({
             <span>{filter.count}</span>
           </button>
         ))}
-      </div>
+      </div> : null}
       <div className="copula-content-list">
-        {filteredItems.length ? (
-          filteredItems.map((item) => (
+        {visibleItems.length ? (
+          visibleItems.map((item) => (
             <button
               key={item.id}
               type="button"
@@ -1307,9 +1310,9 @@ function FeedModule({
               {item.mediaUrl ? (
                 <span className="copula-content-media">
                   {item.mediaKind === "video" ? (
-                    <video src={item.mediaUrl} muted playsInline />
+                    <video src={item.mediaUrl} muted playsInline preload="metadata" />
                   ) : (
-                    <img src={item.mediaUrl} alt="" />
+                    <img src={item.mediaUrl} alt="" loading="lazy" decoding="async" />
                   )}
                 </span>
               ) : null}
@@ -1433,13 +1436,6 @@ function buildCopulaContentItems(community: Community): CopulaContentItem[] {
     }
     return aTime - bTime;
   });
-}
-
-function countTodayScheduleItems(community: Community) {
-  return (
-    community.events.filter((event) => isSameDate(event.startsAt, new Date())).length +
-    community.ddays.filter((dday) => isSameDate(dday.targetDate, new Date())).length
-  );
 }
 
 function isSameDate(value: string, date: Date) {

@@ -86,6 +86,10 @@ export function App() {
     const intent = readInitialRouteIntent();
     return intent?.view === "messages" ? intent.communityId ?? null : null;
   });
+  const [isCommunityListOpen, setIsCommunityListOpen] = useState(() => {
+    const intent = readInitialRouteIntent();
+    return !(intent?.view === "community" && intent.communityId);
+  });
   const [notificationSettingsRequestKey, setNotificationSettingsRequestKey] = useState(0);
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null);
   const [modal, setModal] = useState<ModalState | null>(null);
@@ -158,6 +162,13 @@ export function App() {
 
     if (intent.view === "community") {
       if (!status.isHydrated) return;
+      if (!intent.communityId && !intent.module) {
+        hasHandledRouteIntent.current = true;
+        setActiveView("community");
+        setActiveModule("feed");
+        setIsCommunityListOpen(true);
+        return;
+      }
       const targetCommunity = intent.communityId
         ? state.communities.find((community) => community.id === intent.communityId)
         : selectedCommunity;
@@ -229,6 +240,7 @@ export function App() {
     setActiveModule("feed");
     setSelectedAlbumId(null);
     setSelectedMessageCommunityId(null);
+    setIsCommunityListOpen(true);
     setViewerTarget(null);
   }
 
@@ -242,6 +254,11 @@ export function App() {
       if (activeView === "community" && activeModule !== "feed") {
         setActiveModule("feed");
         setSelectedAlbumId(null);
+        return;
+      }
+
+      if (activeView === "community" && !isCommunityListOpen) {
+        setIsCommunityListOpen(true);
         return;
       }
 
@@ -281,6 +298,7 @@ export function App() {
       return;
     }
     setActiveView("community");
+    setIsCommunityListOpen(false);
     setActiveModule(module);
     setSelectedAlbumId(module === "albums" ? albumId ?? null : null);
     setSelectedMessageCommunityId(null);
@@ -528,10 +546,11 @@ export function App() {
         await actions.removeMember(selectedCommunity.id, memberId);
         showToast(isSelf ? "copula에서 나갔습니다." : "멤버를 내보냈습니다.");
         if (isSelf) {
-          setActiveView("home");
+          setActiveView("community");
           setActiveModule("feed");
           setSelectedAlbumId(null);
           setSelectedMessageCommunityId(null);
+          setIsCommunityListOpen(true);
           setViewerTarget(null);
         }
         setPendingConfirmation(null);
@@ -562,10 +581,11 @@ export function App() {
       onConfirm: async () => {
         await actions.deleteCommunity(community.id);
         showToast("copula를 삭제했습니다.");
-        setActiveView("home");
+        setActiveView("community");
         setActiveModule("feed");
         setSelectedAlbumId(null);
         setSelectedMessageCommunityId(null);
+        setIsCommunityListOpen(true);
         setViewerTarget(null);
         setPendingConfirmation(null);
       }
@@ -579,9 +599,15 @@ export function App() {
           communities={state.communities}
           community={selectedCommunity}
           currentUserId={state.currentUser?.id ?? ""}
+          showCommunityList={isCommunityListOpen}
           activeModule={activeModule}
           selectedAlbumId={selectedAlbumId}
           onSelectCommunity={(communityId) => startViewTransition(() => openCommunity(communityId, activeModule))}
+          onBackToList={() => startViewTransition(() => {
+            setActiveModule("feed");
+            setSelectedAlbumId(null);
+            setIsCommunityListOpen(true);
+          })}
           onModuleChange={(module) => startViewTransition(() => {
             setActiveModule(module);
           })}
@@ -774,13 +800,15 @@ export function App() {
         activeView={activeView}
         activeModule={activeModule}
         currentUser={state.currentUser}
-        selectedCommunity={selectedCommunity}
+        selectedCommunity={activeView === "community" && isCommunityListOpen ? null : selectedCommunity}
         unreadMessageCount={state.notifications.filter((item) => item.kind === "message" && !item.read).length}
         unreadNotificationCount={state.notifications.filter((item) => !item.read).length}
         onViewChange={(view) => startViewTransition(() => {
           setActiveView(view);
           if (view === "community") {
             setActiveModule("feed");
+            setSelectedAlbumId(null);
+            setIsCommunityListOpen(true);
           }
           if (view === "messages") {
             setSelectedMessageCommunityId(null);

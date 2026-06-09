@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useState, type CSSProperties, type FormEvent, type PointerEvent } from "react";
+import { lazy, Suspense, useMemo, useState, type CSSProperties, type FormEvent } from "react";
 import {
   CalendarDays,
   CheckCircle2,
@@ -9,7 +9,9 @@ import {
   Flag,
   Handshake,
   Image,
+  KeyRound,
   ListTodo,
+  MessageCircle,
   type LucideIcon,
   Megaphone,
   Network,
@@ -48,9 +50,11 @@ interface CommunityScreenProps {
   communities: Community[];
   community: Community | null;
   currentUserId: string;
+  showCommunityList: boolean;
   activeModule: CommunityModule;
   selectedAlbumId: string | null;
   onSelectCommunity: (communityId: string) => void;
+  onBackToList: () => void;
   onModuleChange: (module: CommunityModule) => void;
   onSelectAlbum: (albumId: string) => void;
   onOpenJoin: () => void;
@@ -183,9 +187,11 @@ export function CommunityScreen({
   communities,
   community: rawCommunity,
   currentUserId,
+  showCommunityList,
   activeModule,
   selectedAlbumId,
   onSelectCommunity,
+  onBackToList,
   onModuleChange,
   onSelectAlbum,
   onOpenJoin,
@@ -221,16 +227,25 @@ export function CommunityScreen({
 }: CommunityScreenProps) {
   const [isContentManagerOpen, setIsContentManagerOpen] = useState(false);
   const [pendingContentModule, setPendingContentModule] = useState<OptionalContentModule | null>(null);
+  const joinedCommunities = useMemo(
+    () => communities
+      .filter((community) => community.members.some((member) => member.userId === currentUserId))
+      .sort((a, b) => getCommunityLatestActivity(b).timestamp - getCommunityLatestActivity(a).timestamp),
+    [communities, currentUserId]
+  );
 
-  if (!rawCommunity) {
+  if (
+    showCommunityList ||
+    !rawCommunity ||
+    !joinedCommunities.some((community) => community.id === rawCommunity.id)
+  ) {
     return (
-      <section className="section">
-        <EmptyState icon={Users} title="참여 중인 copula가 없습니다" body="초대 코드로 참여하거나 copula를 만들어 시작하세요." />
-        <div className="button-pair">
-          <button className="secondary-button" onClick={onOpenJoin}>초대 코드 입력</button>
-          <button className="primary-button" onClick={onOpenCreateCommunity}>copula 만들기</button>
-        </div>
-      </section>
+      <CommunityDirectory
+        communities={joinedCommunities}
+        onSelectCommunity={onSelectCommunity}
+        onOpenJoin={onOpenJoin}
+        onOpenCreateCommunity={onOpenCreateCommunity}
+      />
     );
   }
 
@@ -275,11 +290,10 @@ export function CommunityScreen({
 
   return (
     <>
-      <CommunityHeroStack
-        communities={communities}
+      <CommunityDetailHero
         activeCommunity={community}
         canManageContent={canManageContent}
-        onSelectCommunity={onSelectCommunity}
+        onBackToList={onBackToList}
         onOpenCommunitySettings={onOpenCommunitySettings}
         onCopyInviteCode={onCopyInviteCode}
       />
@@ -404,6 +418,189 @@ function ModuleLoading({ label }: { label: string }) {
   );
 }
 
+interface CommunityListActivity {
+  timestamp: number;
+  at: string;
+  icon: LucideIcon;
+  text: string;
+}
+
+function CommunityDirectory({
+  communities,
+  onSelectCommunity,
+  onOpenJoin,
+  onOpenCreateCommunity
+}: {
+  communities: Community[];
+  onSelectCommunity: (communityId: string) => void;
+  onOpenJoin: () => void;
+  onOpenCreateCommunity: () => void;
+}) {
+  if (!communities.length) {
+    return (
+      <section className="copula-directory-empty" aria-label="가입한 copula 없음">
+        <span className="copula-directory-empty-icon">
+          <Users aria-hidden="true" />
+        </span>
+        <div>
+          <h1>아직 가입한 Copula가 없어요</h1>
+          <p>초대 코드로 참여하거나 새로운 Copula를 만들어 시작하세요.</p>
+        </div>
+        <div className="copula-directory-empty-actions">
+          <button className="secondary-button" type="button" onClick={onOpenJoin}>
+            <KeyRound aria-hidden="true" />
+            초대 코드
+          </button>
+          <button className="primary-button" type="button" onClick={onOpenCreateCommunity}>
+            <Plus aria-hidden="true" />
+            Copula 만들기
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="copula-directory" aria-label="가입한 copula 목록">
+      <header className="copula-directory-head">
+        <h1>My Copula</h1>
+        <span>{communities.length}</span>
+      </header>
+      <div className="copula-directory-list">
+        {communities.map((community) => {
+          const activity = getCommunityLatestActivity(community);
+          const ActivityIcon = activity.icon;
+          return (
+            <button
+              key={community.id}
+              className="copula-directory-row"
+              type="button"
+              onClick={() => onSelectCommunity(community.id)}
+              style={{ "--accent": community.accent } as CSSProperties}
+            >
+              <span className={`copula-directory-avatar ${community.coverUrl ? "has-cover" : ""}`}>
+                {community.coverUrl ? (
+                  <img src={community.coverUrl} alt="" />
+                ) : (
+                  <span>{communityInitials(community.name)}</span>
+                )}
+              </span>
+              <span className="copula-directory-main">
+                <span className="copula-directory-title-line">
+                  <strong>{community.name}</strong>
+                  <small>{community.members.length}명</small>
+                  <time dateTime={activity.at}>{formatCommunityRelativeTime(activity.at)}</time>
+                </span>
+                <span className="copula-directory-activity">
+                  <ActivityIcon aria-hidden="true" />
+                  <span>{activity.text}</span>
+                </span>
+              </span>
+              <ChevronRight className="copula-directory-chevron" aria-hidden="true" />
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function getCommunityLatestActivity(community: Community): CommunityListActivity {
+  const activities: CommunityListActivity[] = [
+    {
+      timestamp: new Date(community.createdAt).getTime(),
+      at: community.createdAt,
+      icon: CircleDot,
+      text: "Copula가 만들어졌어요"
+    }
+  ];
+
+  community.notices.forEach((notice) => {
+    activities.push({
+      timestamp: new Date(notice.createdAt).getTime(),
+      at: notice.createdAt,
+      icon: Megaphone,
+      text: notice.title
+    });
+  });
+  community.events.forEach((event) => {
+    activities.push({
+      timestamp: new Date(event.createdAt).getTime(),
+      at: event.createdAt,
+      icon: CalendarDays,
+      text: `일정 · ${event.title}`
+    });
+  });
+  community.commitments.forEach((commitment) => {
+    activities.push({
+      timestamp: new Date(commitment.createdAt).getTime(),
+      at: commitment.createdAt,
+      icon: ListTodo,
+      text: `할 일 · ${commitment.title}`
+    });
+  });
+  community.albums.forEach((album) => {
+    activities.push({
+      timestamp: new Date(album.createdAt).getTime(),
+      at: album.createdAt,
+      icon: Image,
+      text: `앨범 · ${album.title}`
+    });
+    album.items.forEach((item) => {
+      activities.push({
+        timestamp: new Date(item.createdAt).getTime(),
+        at: item.createdAt,
+        icon: Image,
+        text: `${album.title} · ${item.title}`
+      });
+    });
+  });
+  community.oneSecondLogs.forEach((log) => {
+    activities.push({
+      timestamp: new Date(log.createdAt).getTime(),
+      at: log.createdAt,
+      icon: Video,
+      text: `${log.userName}님의 1s`
+    });
+  });
+  community.messages.forEach((message) => {
+    activities.push({
+      timestamp: new Date(message.createdAt).getTime(),
+      at: message.createdAt,
+      icon: MessageCircle,
+      text: `${message.senderName}: ${message.body}`
+    });
+  });
+
+  return activities.reduce((latest, activity) =>
+    activity.timestamp > latest.timestamp ? activity : latest
+  );
+}
+
+function communityInitials(name: string) {
+  return name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0])
+    .join("")
+    .toUpperCase() || "C";
+}
+
+function formatCommunityRelativeTime(value: string) {
+  const timestamp = new Date(value).getTime();
+  if (!Number.isFinite(timestamp)) return "";
+  const diffMinutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60000));
+  if (diffMinutes < 1) return "방금";
+  if (diffMinutes < 60) return `${diffMinutes}분`;
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}시간`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}일`;
+  return new Date(value).toLocaleDateString("ko-KR", { month: "short", day: "numeric" });
+}
+
 function isStarterCommunity(community: Community) {
   return (
     community.events.length === 0 &&
@@ -416,131 +613,43 @@ function isStarterCommunity(community: Community) {
   );
 }
 
-function CommunityHeroStack({
-  communities,
+function CommunityDetailHero({
   activeCommunity,
   canManageContent,
-  onSelectCommunity,
+  onBackToList,
   onOpenCommunitySettings,
   onCopyInviteCode
 }: {
-  communities: Community[];
   activeCommunity: Community;
   canManageContent: boolean;
-  onSelectCommunity: (communityId: string) => void;
+  onBackToList: () => void;
   onOpenCommunitySettings: () => void;
   onCopyInviteCode: () => void;
 }) {
-  const activeIndex = Math.max(0, communities.findIndex((item) => item.id === activeCommunity.id));
-  const hasMultipleCommunities = communities.length > 1;
-  const previousCommunity = hasMultipleCommunities
-    ? communities[(activeIndex - 1 + communities.length) % communities.length]
-    : null;
-  const nextCommunity = hasMultipleCommunities
-    ? communities[(activeIndex + 1) % communities.length]
-    : null;
-  const [dragStartX, setDragStartX] = useState<number | null>(null);
-  const [dragDeltaX, setDragDeltaX] = useState(0);
-
-  function selectRelativeCommunity(direction: "previous" | "next") {
-    const target = direction === "previous" ? previousCommunity : nextCommunity;
-    if (target && target.id !== activeCommunity.id) {
-      onSelectCommunity(target.id);
-    }
-  }
-
-  function handlePointerDown(event: PointerEvent<HTMLElement>) {
-    if (!hasMultipleCommunities) return;
-    setDragStartX(event.clientX);
-    setDragDeltaX(0);
-    event.currentTarget.setPointerCapture(event.pointerId);
-  }
-
-  function handlePointerMove(event: PointerEvent<HTMLElement>) {
-    if (dragStartX === null) return;
-    setDragDeltaX(event.clientX - dragStartX);
-  }
-
-  function finishPointerGesture() {
-    if (dragStartX === null) return;
-    const threshold = 64;
-    const direction = dragDeltaX < -threshold ? "next" : dragDeltaX > threshold ? "previous" : null;
-    setDragStartX(null);
-    setDragDeltaX(0);
-    if (direction) {
-      selectRelativeCommunity(direction);
-    }
-  }
-
   return (
-    <section
-      className={`community-hero-stack ${hasMultipleCommunities ? "has-stack" : ""}`}
-      aria-label="copula 타이틀"
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={finishPointerGesture}
-      onPointerCancel={finishPointerGesture}
-      style={{
-        "--accent": activeCommunity.accent,
-        "--hero-drag-x": `${Math.max(-84, Math.min(84, dragDeltaX))}px`
-      } as CSSProperties}
-    >
-      {previousCommunity ? <CommunityStackPreview community={previousCommunity} side="left" /> : null}
-      {nextCommunity ? <CommunityStackPreview community={nextCommunity} side="right" /> : null}
+    <section className="community-detail-shell" aria-label="copula 상세">
+      <button className="community-detail-back" type="button" onClick={onBackToList}>
+        <ChevronLeft aria-hidden="true" />
+        <span>My Copula</span>
+      </button>
       <CommunityHeroCard
         community={activeCommunity}
         canManageContent={canManageContent}
-        showSwitcherHint={hasMultipleCommunities}
         onOpenCommunitySettings={onOpenCommunitySettings}
         onCopyInviteCode={onCopyInviteCode}
       />
-      {hasMultipleCommunities ? (
-        <div className="community-stack-indicators" aria-label={`${activeIndex + 1} / ${communities.length}`}>
-          {communities.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={item.id === activeCommunity.id ? "is-active" : ""}
-              onClick={() => onSelectCommunity(item.id)}
-              aria-label={`${item.name}로 전환`}
-              aria-current={item.id === activeCommunity.id ? "true" : undefined}
-            />
-          ))}
-        </div>
-      ) : null}
     </section>
-  );
-}
-
-function CommunityStackPreview({
-  community,
-  side
-}: {
-  community: Community;
-  side: "left" | "right";
-}) {
-  return (
-    <div
-      className={`community-stack-preview is-${side} ${community.coverUrl ? "has-cover" : "has-gradient"}`}
-      aria-hidden="true"
-      style={{
-        "--accent": community.accent,
-        backgroundImage: community.coverUrl ? `url(${community.coverUrl})` : "none"
-      } as CSSProperties}
-    />
   );
 }
 
 function CommunityHeroCard({
   community,
   canManageContent,
-  showSwitcherHint,
   onOpenCommunitySettings,
   onCopyInviteCode
 }: {
   community: Community;
   canManageContent: boolean;
-  showSwitcherHint: boolean;
   onOpenCommunitySettings: () => void;
   onCopyInviteCode: () => void;
 }) {
@@ -588,12 +697,6 @@ function CommunityHeroCard({
             <Users aria-hidden="true" />
             {community.members.length}
           </span>
-          {showSwitcherHint ? (
-            <span className="community-swipe-hint" aria-hidden="true">
-              <ChevronLeft />
-              <ChevronRight />
-            </span>
-          ) : null}
         </div>
         {primaryNotice ? <CommunityHeroNotice notice={primaryNotice} /> : null}
       </div>

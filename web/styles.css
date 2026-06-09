@@ -1745,146 +1745,221 @@ select:focus-visible {
 
 .copula-directory {
   display: grid;
-  gap: 12px;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px;
+  width: 100%;
+  max-width: 760px;
+  min-height: calc(100svh - 112px - env(safe-area-inset-bottom));
+  margin: 0 auto;
 }
 
 .copula-directory-head {
   display: flex;
-  min-height: 44px;
+  min-height: 34px;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 0 4px;
+  padding: 0 2px;
 }
 
 .copula-directory-head h1 {
   color: var(--ink);
-  font-size: 1.28rem;
+  font-size: 1.15rem;
   font-weight: 900;
 }
 
 .copula-directory-head > span {
   display: inline-grid;
-  min-width: 28px;
-  height: 28px;
+  min-width: 25px;
+  height: 25px;
   place-items: center;
   border-radius: 999px;
   background: var(--primary-soft);
   color: var(--primary-ink);
-  padding: 0 8px;
-  font-size: 0.76rem;
+  padding: 0 7px;
+  font-size: 0.7rem;
   font-weight: 900;
 }
 
 .copula-directory-list {
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
+  display: grid;
+  grid-auto-flow: row;
+  grid-auto-rows: 132px;
+  gap: 8px;
+  min-height: 0;
+}
+
+.copula-directory.is-two-column .copula-directory-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.copula-directory.rows-1 .copula-directory-list {
+  grid-auto-rows: 156px;
+}
+
+.copula-directory.rows-2 .copula-directory-list {
+  grid-auto-rows: 138px;
+}
+
+.copula-directory.rows-3 .copula-directory-list {
+  grid-auto-rows: 122px;
+}
+
+.copula-directory.rows-4 .copula-directory-list {
+  grid-auto-rows: 108px;
+}
+
+.copula-directory.rows-5 .copula-directory-list {
+  grid-auto-rows: 96px;
+}
+
+.copula-directory.rows-6 .copula-directory-list {
+  grid-auto-rows: 88px;
 }
 
 .copula-directory-row {
+  position: relative;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 4px 8px;
   width: 100%;
   min-width: 0;
-  min-height: 82px;
-  align-items: center;
-  border: 0;
-  background: transparent;
-  color: var(--ink);
-  padding: 13px 4px;
+  min-height: 0;
+  align-items: end;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.76);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  color: #ffffff;
+  padding: 10px 11px;
   text-align: left;
+  isolation: isolate;
+  box-shadow: 0 7px 18px rgba(57, 42, 65, 0.11);
   transition:
-    background var(--motion-fast) var(--ease-out),
+    box-shadow var(--motion-fast) var(--ease-out),
     transform var(--motion-fast) var(--ease-out);
 }
 
-.copula-directory-row + .copula-directory-row {
-  border-top: 1px solid var(--line);
-}
-
 .copula-directory-row:hover {
-  background: color-mix(in srgb, var(--accent, var(--primary)) 5%, transparent);
+  box-shadow: 0 11px 25px rgba(57, 42, 65, 0.16);
+  transform: translateY(-1px);
 }
 
 .copula-directory-row:active {
   transform: scale(0.992);
 }
 
-.copula-directory-avatar {
-  display: grid;
-  width: 52px;
-  height: 52px;
-  overflow: hidden;
-  place-items: center;
-  border: 1px solid color-mix(in srgb, var(--accent, var(--primary)) 34%, var(--line));
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--accent, var(--primary)) 16%, var(--surface));
-  color: color-mix(in srgb, var(--accent, var(--primary)) 76%, var(--ink));
-  font-size: 0.9rem;
-  font-weight: 950;
-  box-shadow: 0 6px 14px color-mix(in srgb, var(--accent, var(--primary)) 12%, transparent);
+.copula-directory-media,
+.copula-directory-shade {
+  position: absolute;
+  inset: 0;
 }
 
-.copula-directory-avatar img {
+.copula-directory-media {
+  z-index: -2;
+}
+
+.copula-directory-media img {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center 52%;
+  transition: transform var(--motion-slow) var(--ease-out);
 }
 
-.copula-directory-main {
-  display: grid;
+.copula-directory-row:hover .copula-directory-media img {
+  transform: scale(1.025);
+}
+
+.copula-directory-shade {
+  z-index: 1;
+  background:
+    linear-gradient(180deg, rgba(28, 21, 33, 0.08) 0%, rgba(28, 21, 33, 0.12) 32%, rgba(28, 21, 33, 0.78) 100%);
+}
+
+.copula-directory-card-top {
+  grid-column: 1 / -1;
+  align-self: start;
+  display: flex;
+  align-items: center;
   gap: 6px;
   min-width: 0;
 }
 
-.copula-directory-title-line {
-  display: flex;
-  gap: 7px;
+.copula-directory-initials,
+.copula-directory-member-count,
+.copula-directory-card-top time {
+  display: inline-flex;
+  min-height: 24px;
   align-items: center;
-  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  border-radius: 999px;
+  background: rgba(30, 22, 36, 0.28);
+  color: #ffffff;
+  padding: 0 8px;
+  font-size: 0.68rem;
+  font-weight: 850;
+  line-height: 1;
+  backdrop-filter: blur(10px) saturate(1.1);
 }
 
-.copula-directory-title-line strong {
+.copula-directory-initials {
+  min-width: 24px;
+  justify-content: center;
+  background: color-mix(in srgb, var(--accent, var(--primary)) 74%, rgba(30, 22, 36, 0.34));
+}
+
+.copula-directory-member-count {
+  gap: 4px;
+}
+
+.copula-directory-member-count svg {
+  width: 12px;
+  height: 12px;
+}
+
+.copula-directory-card-top time {
+  margin-left: auto;
+}
+
+.copula-directory-main {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  gap: 3px;
   min-width: 0;
+  align-self: end;
+}
+
+.copula-directory-main > strong {
   overflow: hidden;
-  color: var(--ink);
-  font-size: 0.96rem;
+  color: #ffffff;
+  font-size: 1rem;
   font-weight: 900;
+  line-height: 1.18;
+  text-shadow: 0 2px 8px rgba(23, 15, 28, 0.38);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.copula-directory-title-line small {
-  flex: 0 0 auto;
-  color: var(--muted);
-  font-size: 0.7rem;
-  font-weight: 760;
-}
-
-.copula-directory-title-line time {
-  flex: 0 0 auto;
-  margin-left: auto;
-  color: var(--muted);
-  font-size: 0.68rem;
-  font-weight: 760;
-}
-
 .copula-directory-activity {
   display: flex;
-  gap: 6px;
+  gap: 5px;
   align-items: center;
   min-width: 0;
-  color: var(--muted);
-  font-size: 0.78rem;
-  font-weight: 720;
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 0.72rem;
+  font-weight: 740;
+  text-shadow: 0 1px 5px rgba(23, 15, 28, 0.34);
 }
 
 .copula-directory-activity svg {
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
   flex: 0 0 auto;
-  color: color-mix(in srgb, var(--accent, var(--primary)) 74%, var(--muted));
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .copula-directory-activity span {
@@ -1894,10 +1969,82 @@ select:focus-visible {
   white-space: nowrap;
 }
 
-.copula-directory-chevron {
-  width: 18px;
-  height: 18px;
-  color: var(--muted);
+.copula-directory-open-icon {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  align-self: end;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 50%;
+  background: rgba(30, 22, 36, 0.24);
+  color: #ffffff;
+  backdrop-filter: blur(8px);
+}
+
+.copula-directory-open-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.copula-directory.is-two-column .copula-directory-row {
+  padding: 8px 9px;
+}
+
+.copula-directory.is-two-column .copula-directory-media img {
+  object-position: center 48%;
+}
+
+.copula-directory.is-two-column .copula-directory-main > strong {
+  font-size: 0.86rem;
+}
+
+.copula-directory.is-two-column .copula-directory-activity {
+  font-size: 0.66rem;
+}
+
+.copula-directory.is-two-column .copula-directory-initials {
+  display: none;
+}
+
+.copula-directory.is-two-column .copula-directory-member-count,
+.copula-directory.is-two-column .copula-directory-card-top time {
+  min-height: 22px;
+  padding: 0 6px;
+  font-size: 0.62rem;
+}
+
+.copula-directory.is-two-column .copula-directory-open-icon {
+  width: 23px;
+  height: 23px;
+}
+
+@media (max-height: 740px) {
+  .copula-directory.rows-1 .copula-directory-list {
+    grid-auto-rows: 138px;
+  }
+
+  .copula-directory.rows-2 .copula-directory-list {
+    grid-auto-rows: 122px;
+  }
+
+  .copula-directory.rows-3 .copula-directory-list {
+    grid-auto-rows: 106px;
+  }
+
+  .copula-directory.rows-4 .copula-directory-list {
+    grid-auto-rows: 92px;
+  }
+
+  .copula-directory.rows-5 .copula-directory-list {
+    grid-auto-rows: 80px;
+  }
+
+  .copula-directory.rows-6 .copula-directory-list {
+    grid-auto-rows: 72px;
+  }
 }
 
 .copula-directory-empty {

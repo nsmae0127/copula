@@ -111,7 +111,7 @@ export function Layout({
   };
   const plusButton = getPlusButtonConfig(activeView, Boolean(selectedCommunity));
   const PlusButtonIcon = plusButton.icon;
-  const showTopbar = activeView !== "notifications" && activeView !== "messages";
+  const showTopbar = activeView !== "notifications" && activeView !== "messages" && activeView !== "community";
 
   function handleBackSwipeStart(event: PointerEvent<HTMLDivElement>) {
     if (event.pointerType === "mouse") return;

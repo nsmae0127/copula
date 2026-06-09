@@ -460,8 +460,14 @@ function CommunityDirectory({
     );
   }
 
+  const isTwoColumn = communities.length > 6;
+  const rowCount = Math.min(6, Math.ceil(communities.length / (isTwoColumn ? 2 : 1)));
+
   return (
-    <section className="copula-directory" aria-label="가입한 copula 목록">
+    <section
+      className={`copula-directory ${isTwoColumn ? "is-two-column" : "is-single-column"} rows-${rowCount}`}
+      aria-label="가입한 copula 목록"
+    >
       <header className="copula-directory-head">
         <h1>My Copula</h1>
         <span>{communities.length}</span>
@@ -469,6 +475,7 @@ function CommunityDirectory({
       <div className="copula-directory-list">
         {communities.map((community) => {
           const activity = getCommunityLatestActivity(community);
+          const bannerUrl = getCommunityBannerUrl(community);
           const ActivityIcon = activity.icon;
           return (
             <button
@@ -478,31 +485,53 @@ function CommunityDirectory({
               onClick={() => onSelectCommunity(community.id)}
               style={{ "--accent": community.accent } as CSSProperties}
             >
-              <span className={`copula-directory-avatar ${community.coverUrl ? "has-cover" : ""}`}>
-                {community.coverUrl ? (
-                  <img src={community.coverUrl} alt="" />
-                ) : (
-                  <span>{communityInitials(community.name)}</span>
-                )}
+              <span className="copula-directory-media">
+                <img src={bannerUrl} alt="" />
+                <span className="copula-directory-shade" />
+              </span>
+              <span className="copula-directory-card-top">
+                <span className="copula-directory-initials">{communityInitials(community.name)}</span>
+                <span className="copula-directory-member-count">
+                  <Users aria-hidden="true" />
+                  {community.members.length}
+                </span>
+                <time dateTime={activity.at}>{formatCommunityRelativeTime(activity.at)}</time>
               </span>
               <span className="copula-directory-main">
-                <span className="copula-directory-title-line">
-                  <strong>{community.name}</strong>
-                  <small>{community.members.length}명</small>
-                  <time dateTime={activity.at}>{formatCommunityRelativeTime(activity.at)}</time>
-                </span>
+                <strong>{community.name}</strong>
                 <span className="copula-directory-activity">
                   <ActivityIcon aria-hidden="true" />
                   <span>{activity.text}</span>
                 </span>
               </span>
-              <ChevronRight className="copula-directory-chevron" aria-hidden="true" />
+              <span className="copula-directory-open-icon">
+                <ChevronRight aria-hidden="true" />
+              </span>
             </button>
           );
         })}
       </div>
     </section>
   );
+}
+
+const DEFAULT_COMMUNITY_BANNERS = [
+  "/assets/copula-banner-friends.jpg",
+  "/assets/copula-banner-planning.jpg",
+  "/assets/copula-banner-family.jpg"
+] as const;
+
+function getCommunityBannerUrl(community: Community) {
+  if (community.coverUrl) return community.coverUrl;
+
+  const latestMediaItem = community.albums
+    .flatMap((album) => album.items)
+    .filter((item) => Boolean(item.mediaUrl))
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+  if (latestMediaItem?.mediaUrl) return latestMediaItem.mediaUrl;
+
+  const hash = [...community.id].reduce((total, character) => total + character.charCodeAt(0), 0);
+  return DEFAULT_COMMUNITY_BANNERS[hash % DEFAULT_COMMUNITY_BANNERS.length];
 }
 
 function getCommunityLatestActivity(community: Community): CommunityListActivity {

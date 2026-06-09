@@ -189,7 +189,10 @@ button:disabled {
   display: grid;
   grid-template-columns: minmax(44px, 1fr) auto minmax(44px, 1fr);
   gap: 12px;
+  width: 100%;
+  max-width: 980px;
   align-items: center;
+  margin: 0 auto;
   padding: 8px 0 13px;
   border-bottom: 1px solid rgba(238, 227, 232, 0.72);
   background: color-mix(in srgb, #fff8fa 88%, transparent);
@@ -197,8 +200,13 @@ button:disabled {
   animation: slide-down var(--motion-slow) var(--ease-out) both;
 }
 
-.topbar-side {
+.top-account-area {
+  position: relative;
+  display: flex;
   min-width: 44px;
+  align-items: center;
+  justify-content: flex-start;
+  justify-self: start;
 }
 
 .brand {
@@ -280,14 +288,13 @@ button:disabled {
   flex: 0 0 auto;
 }
 
+.topbar-account-button,
 .topbar-notification-button {
-  position: fixed;
-  top: max(20px, calc(env(safe-area-inset-top) + 8px));
-  right: max(12px, calc((100vw - 980px) / 2));
-  z-index: 40;
+  position: relative;
+  z-index: 46;
   display: inline-grid;
-  width: 42px;
-  height: 42px;
+  width: 40px;
+  height: 40px;
   place-items: center;
   border: 1px solid rgba(212, 188, 229, 0.84);
   border-radius: 50%;
@@ -301,10 +308,28 @@ button:disabled {
     transform var(--motion-fast) var(--ease-out);
 }
 
+.topbar-account-button {
+  background:
+    linear-gradient(135deg, rgba(240, 113, 122, 0.94), rgba(140, 116, 186, 0.94));
+  color: white;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.topbar-account-button:hover,
 .topbar-notification-button:hover {
   background: var(--surface);
+  color: var(--primary-ink);
   box-shadow: 0 12px 24px rgba(92, 70, 130, 0.12);
   transform: translateY(-1px);
+}
+
+.topbar-account-button.is-active,
+.topbar-notification-button.is-active {
+  border-color: color-mix(in srgb, var(--brand-coral) 54%, var(--line));
+  box-shadow:
+    0 0 0 3px rgba(240, 113, 122, 0.1),
+    var(--shadow-card);
 }
 
 .topbar-notification-button svg {
@@ -332,9 +357,118 @@ button:disabled {
   animation: badge-pop 220ms var(--ease-spring) both;
 }
 
-@media (max-width: 600px) {
-  .topbar-notification-button {
-    right: max(12px, calc(100vw - 376px));
+.account-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 44;
+  border: 0;
+  background: transparent;
+}
+
+.account-menu-popover {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  z-index: 47;
+  display: grid;
+  gap: 10px;
+  width: min(270px, calc(100vw - 24px));
+  padding: 10px;
+  border: 1px solid rgba(223, 209, 220, 0.95);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.985);
+  box-shadow: 0 18px 42px rgba(74, 55, 82, 0.18);
+  backdrop-filter: blur(22px) saturate(1.18);
+  animation: account-menu-in var(--motion-base) var(--ease-out) both;
+}
+
+.account-menu-profile {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  padding: 4px;
+}
+
+.account-menu-avatar {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--brand-gradient);
+  color: white;
+  font-size: 0.84rem;
+  font-weight: 900;
+  box-shadow: 0 8px 18px rgba(140, 116, 186, 0.18);
+}
+
+.account-menu-profile > span:last-child {
+  display: grid;
+  min-width: 0;
+}
+
+.account-menu-profile strong,
+.account-menu-profile small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-menu-profile strong {
+  color: var(--ink);
+  font-size: 0.92rem;
+  font-weight: 900;
+}
+
+.account-menu-profile small {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 720;
+}
+
+.account-menu-actions {
+  display: grid;
+  gap: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.account-menu-actions button {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  min-height: 40px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  padding: 8px 9px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-align: left;
+}
+
+.account-menu-actions button:hover {
+  background: var(--primary-soft);
+  color: var(--primary-ink);
+}
+
+.account-menu-actions svg {
+  width: 17px;
+  height: 17px;
+}
+
+@keyframes account-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -5111,11 +5245,15 @@ select:focus-visible {
   display: none;
   max-width: 100%;
   overflow: hidden;
-  padding: 0 3px;
-  font-size: 0.76rem;
+  padding: 0 1px;
+  font-size: 0.68rem;
   line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.nav-label-long {
+  font-size: 0.62rem;
 }
 
 .nav-item.is-active .nav-icon-wrap {
@@ -5939,6 +6077,33 @@ select:focus {
 :root.dark-theme .topbar {
   background: color-mix(in srgb, #2A2230 88%, transparent);
   border-bottom: 1px solid rgba(90, 69, 94, 0.72);
+}
+
+:root.dark-theme .topbar-account-button,
+:root.dark-theme .topbar-notification-button {
+  border-color: rgba(92, 74, 102, 0.9);
+  background: rgba(54, 43, 62, 0.94);
+  color: #fff4fa;
+}
+
+:root.dark-theme .topbar-account-button {
+  background: linear-gradient(135deg, rgba(216, 100, 125, 0.96), rgba(127, 103, 173, 0.96));
+}
+
+:root.dark-theme .topbar-account-button:hover,
+:root.dark-theme .topbar-notification-button:hover {
+  background: rgba(68, 54, 76, 0.98);
+  color: white;
+}
+
+:root.dark-theme .account-menu-popover {
+  border-color: rgba(92, 74, 102, 0.9);
+  background: rgba(38, 31, 44, 0.985);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.38);
+}
+
+:root.dark-theme .account-menu-actions {
+  border-top-color: rgba(92, 74, 102, 0.72);
 }
 
 :root.dark-theme .bottom-nav {

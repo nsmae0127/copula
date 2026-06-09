@@ -19,17 +19,20 @@ import {
   Video,
   type LucideIcon
 } from "lucide-react";
-import type { Community, ViewName } from "../types";
+import type { Community, CommunityModule, UserProfile, ViewName } from "../types";
 import { playTapSound } from "../utils/soundEffects";
 
 interface LayoutProps {
   activeView: ViewName;
+  activeModule: CommunityModule;
+  currentUser: UserProfile;
   selectedCommunity: Community | null;
   unreadMessageCount: number;
   unreadNotificationCount: number;
   children: ReactNode;
   onViewChange: (view: ViewName) => void;
   onOpenNotifications: () => void;
+  onOpenCalendar: () => void;
   onOpenJoin: () => void;
   onOpenCreateCommunity: () => void;
   onOpenQuickNotice: () => void;
@@ -41,12 +44,15 @@ interface LayoutProps {
 
 export function Layout({
   activeView,
+  activeModule,
+  currentUser,
   selectedCommunity,
   unreadMessageCount,
   unreadNotificationCount,
   children,
   onViewChange,
   onOpenNotifications,
+  onOpenCalendar,
   onOpenJoin,
   onOpenCreateCommunity,
   onOpenQuickNotice,
@@ -56,6 +62,7 @@ export function Layout({
   onOpenQuickVlog
 }: LayoutProps) {
   const [isPlusMenuOpen, setIsPlusMenuOpen] = useState(false);
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("theme");
@@ -75,6 +82,25 @@ export function Layout({
     localStorage.setItem("theme", theme);
   }, [theme]);
 
+  useEffect(() => {
+    setIsPlusMenuOpen(false);
+    setIsAccountMenuOpen(false);
+  }, [activeView, activeModule]);
+
+  useEffect(() => {
+    if (!isPlusMenuOpen && !isAccountMenuOpen) return;
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsPlusMenuOpen(false);
+        setIsAccountMenuOpen(false);
+      }
+    }
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [isPlusMenuOpen, isAccountMenuOpen]);
+
   const toggleTheme = () => {
     setTheme((prev) => (prev === "light" ? "dark" : "light"));
   };
@@ -84,7 +110,66 @@ export function Layout({
   return (
     <div className="app-shell">
       <header className="topbar">
-        <div className="topbar-side" aria-hidden="true" />
+        <div className="top-account-area">
+          <button
+            className={`topbar-account-button ${activeView === "profile" ? "is-active" : ""}`}
+            type="button"
+            onClick={() => {
+              playTapSound();
+              setIsPlusMenuOpen(false);
+              setIsAccountMenuOpen((current) => !current);
+            }}
+            aria-label="계정 정보"
+            aria-expanded={isAccountMenuOpen}
+            aria-controls="topbar-account-menu"
+            title="계정 정보"
+          >
+            <span>{currentUser.initials}</span>
+          </button>
+
+          {isAccountMenuOpen ? (
+            <>
+              <button
+                className="account-menu-backdrop"
+                type="button"
+                aria-label="계정 메뉴 닫기"
+                onClick={() => setIsAccountMenuOpen(false)}
+              />
+              <div className="account-menu-popover" id="topbar-account-menu">
+                <div className="account-menu-profile">
+                  <span className="account-menu-avatar">{currentUser.initials}</span>
+                  <span>
+                    <strong>{currentUser.name}</strong>
+                    <small>{currentUser.handle}</small>
+                  </span>
+                </div>
+                <div className="account-menu-actions">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      playTapSound();
+                      setIsAccountMenuOpen(false);
+                      onViewChange("profile");
+                    }}
+                  >
+                    <UserRound aria-hidden="true" />
+                    <span>계정 설정</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      playTapSound();
+                      toggleTheme();
+                    }}
+                  >
+                    {theme === "dark" ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}
+                    <span>{theme === "dark" ? "라이트 모드" : "다크 모드"}</span>
+                  </button>
+                </div>
+              </div>
+            </>
+          ) : null}
+        </div>
         <div className="brand">
           <div className="brand-mark">
             <img src="/assets/logo-mark-96.png" alt="" aria-hidden="true" />
@@ -94,26 +179,25 @@ export function Layout({
           </div>
         </div>
         <div className="top-actions">
-          {activeView === "home" ? (
-            <button
-              className="topbar-notification-button"
-              type="button"
-              onClick={() => {
-                playTapSound();
-                setIsPlusMenuOpen(false);
-                onOpenNotifications();
-              }}
-              aria-label={`알림 ${unreadNotificationCount}개`}
-              title="알림"
-            >
-              <Bell aria-hidden="true" />
-              {unreadNotificationCount > 0 ? (
-                <span className="topbar-notification-badge">
-                  {unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}
-                </span>
-              ) : null}
-            </button>
-          ) : null}
+          <button
+            className={`topbar-notification-button ${activeView === "notifications" ? "is-active" : ""}`}
+            type="button"
+            onClick={() => {
+              playTapSound();
+              setIsPlusMenuOpen(false);
+              setIsAccountMenuOpen(false);
+              onOpenNotifications();
+            }}
+            aria-label={`알림 ${unreadNotificationCount}개`}
+            title="알림"
+          >
+            <Bell aria-hidden="true" />
+            {unreadNotificationCount > 0 ? (
+              <span className="topbar-notification-badge">
+                {unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}
+              </span>
+            ) : null}
+          </button>
         </div>
       </header>
 
@@ -137,14 +221,14 @@ export function Layout({
 
         {/* Copula */}
         <button
-          className={`nav-item ${activeView === "community" ? "is-active" : ""}`}
+          className={`nav-item ${activeView === "community" && activeModule !== "calendar" ? "is-active" : ""}`}
           aria-label="Copula"
           onClick={() => {
             playTapSound();
             setIsPlusMenuOpen(false);
             onViewChange("community");
           }}
-          aria-current={activeView === "community" ? "page" : undefined}
+          aria-current={activeView === "community" && activeModule !== "calendar" ? "page" : undefined}
         >
           <span className="nav-icon-wrap"><Users aria-hidden="true" /></span>
           <span className="nav-label">Copula</span>
@@ -283,22 +367,23 @@ export function Layout({
               <span className="nav-red-dot" aria-label={`${unreadMessageCount}개 읽지 않은 메시지`} />
             ) : null}
           </span>
-          <span className="nav-label">메시지</span>
+          <span className="nav-label nav-label-long">Messages</span>
         </button>
 
-        {/* 계정 */}
+        {/* 캘린더 */}
         <button
-          className={`nav-item ${activeView === "profile" ? "is-active" : ""}`}
-          aria-label="계정"
+          className={`nav-item ${activeView === "community" && activeModule === "calendar" ? "is-active" : ""}`}
+          aria-label="캘린더"
           onClick={() => {
             playTapSound();
             setIsPlusMenuOpen(false);
-            onViewChange("profile");
+            setIsAccountMenuOpen(false);
+            onOpenCalendar();
           }}
-          aria-current={activeView === "profile" ? "page" : undefined}
+          aria-current={activeView === "community" && activeModule === "calendar" ? "page" : undefined}
         >
-          <span className="nav-icon-wrap"><UserRound aria-hidden="true" /></span>
-          <span className="nav-label">계정</span>
+          <span className="nav-icon-wrap"><CalendarDays aria-hidden="true" /></span>
+          <span className="nav-label nav-label-long">Calendar</span>
         </button>
       </nav>
     </div>

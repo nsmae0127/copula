@@ -751,16 +751,30 @@ export function App() {
     <>
       <Layout
         activeView={activeView}
+        activeModule={activeModule}
+        currentUser={state.currentUser}
         selectedCommunity={selectedCommunity}
         unreadMessageCount={state.notifications.filter((item) => item.kind === "message" && !item.read).length}
         unreadNotificationCount={state.notifications.filter((item) => !item.read).length}
         onViewChange={(view) => startViewTransition(() => {
           setActiveView(view);
+          if (view === "community") {
+            setActiveModule("feed");
+          }
           if (view === "messages") {
             setSelectedMessageCommunityId(null);
           }
         })}
         onOpenNotifications={() => startViewTransition(() => setActiveView("notifications"))}
+        onOpenCalendar={() => startViewTransition(() => {
+          const targetCommunity = selectedCommunity ?? state.communities[0] ?? null;
+          if (targetCommunity) {
+            openCommunity(targetCommunity.id, "calendar");
+            return;
+          }
+          setActiveView("community");
+          setActiveModule("calendar");
+        })}
         onOpenJoin={() => openJoinModal()}
         onOpenCreateCommunity={() => setModal({ type: "community" })}
         onOpenQuickNotice={openQuickNotice}

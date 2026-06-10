@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, useRef, useEffect, type ReactNode, type CSSProperties } from "react";
 import {
   CalendarDays,
   Flag,
@@ -58,6 +58,72 @@ export function HomeScreen({
   // 몰입 모드 및 다이내믹 무드 조명 상태
   const [focusMode, setFocusMode] = useState(false);
   const [activeAccent, setActiveAccent] = useState("#8c74ba");
+
+  // Pull to Refresh state & refs
+  const [pullOffset, setPullOffset] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const touchStart = useRef<{ y: number; x: number } | null>(null);
+  const feedContainerRef = useRef<HTMLDivElement | null>(null);
+  const pullThreshold = 65;
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (isRefreshing) return;
+    const container = feedContainerRef.current;
+    if (container && container.scrollTop === 0) {
+      touchStart.current = {
+        y: e.touches[0].clientY,
+        x: e.touches[0].clientX
+      };
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!touchStart.current || isRefreshing) return;
+    const currentY = e.touches[0].clientY;
+    const currentX = e.touches[0].clientX;
+    const deltaY = currentY - touchStart.current.y;
+    const deltaX = currentX - touchStart.current.x;
+
+    if (deltaY > 0 && Math.abs(deltaY) > Math.abs(deltaX)) {
+      const pull = Math.min(120, deltaY * 0.4);
+      setPullOffset(pull);
+      if (e.cancelable) {
+        e.preventDefault();
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart.current || isRefreshing) return;
+    touchStart.current = null;
+    
+    if (pullOffset >= pullThreshold) {
+      setIsRefreshing(true);
+      setPullOffset(pullThreshold);
+      
+      setTimeout(() => {
+        setPullOffset(0);
+        setIsRefreshing(false);
+      }, 1200);
+    } else {
+      setPullOffset(0);
+    }
+  };
+
+  // D-Day 위젯 목록 추출
+  const ddayItems = hasCommunities ? state.communities.flatMap((community) => {
+    return community.ddays
+      .filter((dday) => {
+        const daysLeft = daysUntil(dday.targetDate);
+        return daysLeft >= 0;
+      })
+      .map((dday) => ({
+        id: dday.id,
+        title: dday.title,
+        targetDate: dday.targetDate,
+        community
+      }));
+  }).sort((a, b) => new Date(a.targetDate).getTime() - new Date(b.targetDate).getTime()) : [];
 
   // 피드 데이터 추출 및 변환
   const allFeedItems: FeedItem[] = hasCommunities ? [
@@ -255,20 +321,76 @@ export function HomeScreen({
             </div>
           </section>
 
+          {/* D-Day 위젯 가로 스크롤 카드 */}
+          {ddayItems.length > 0 && (
+            <section className="home-dday-section">
+              <div className="home-dday-list">
+                {ddayItems.map((dday) => {
+                  const daysLeft = daysUntil(dday.targetDate);
+                  const ddayLabel = daysLeft === 0 ? "D-Day" : daysLeft > 0 ? `D-${daysLeft}` : `D+${Math.abs(daysLeft)}`;
+                  return (
+                    <div 
+                      key={dday.id} 
+                      className="home-dday-widget-card"
+                      style={{ "--accent": dday.community.accent } as CSSProperties}
+                      onClick={() => onSelectCommunity(dday.community.id)}
+                    >
+                      <span className="dday-widget-badge">{ddayLabel}</span>
+                      <div className="dday-widget-body">
+                        <strong className="dday-widget-title">{dday.title}</strong>
+                        <span className="dday-widget-community">{dday.community.name}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
           {/* 인스타 피드 스냅 컨테이너 */}
           <section className="home-feed-section">
             {sortedFeed.length > 0 ? (
-              <div className="home-feed-container">
-                {sortedFeed.map((item) => (
-                  <div 
-                    key={item.id} 
-                    className="home-feed-card-snap-wrapper"
-                    onMouseEnter={() => setActiveAccent(item.community.accent)}
-                    onTouchStart={() => setActiveAccent(item.community.accent)}
-                  >
-                    {renderFeedCard(item, onOpenCommunityModule, onOpenAlbumCommunity)}
-                  </div>
-                ))}
+              <div 
+                className="home-feed-container-wrapper"
+                style={{ position: "relative", overflow: "hidden" }}
+              >
+                {/* Pull-to-Refresh indicator spinner */}
+                <div 
+                  className={`pull-refresh-indicator ${isRefreshing ? "is-refreshing" : ""}`}
+                  style={{
+                    transform: `translateY(${pullOffset - 40}px)`,
+                    opacity: pullOffset > 0 ? Math.min(1, pullOffset / pullThreshold) : 0,
+                    transition: touchStart.current ? "none" : "transform 0.3s ease, opacity 0.3s ease"
+                  }}
+                >
+                  <span className="refresh-spinner-icon" />
+                  <span className="refresh-label">
+                    {isRefreshing ? "새로고침 중..." : pullOffset >= pullThreshold ? "놓아서 새로고침" : "당겨서 새로고침"}
+                  </span>
+                </div>
+
+                <div 
+                  ref={feedContainerRef}
+                  className="home-feed-container"
+                  onTouchStart={handleTouchStart}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
+                  style={{
+                    transform: `translateY(${pullOffset}px)`,
+                    transition: touchStart.current ? "none" : "transform 0.3s ease"
+                  }}
+                >
+                  {sortedFeed.map((item) => (
+                    <div 
+                      key={item.id} 
+                      className="home-feed-card-snap-wrapper"
+                      onMouseEnter={() => setActiveAccent(item.community.accent)}
+                      onTouchStart={() => setActiveAccent(item.community.accent)}
+                    >
+                      {renderFeedCard(item, onOpenCommunityModule, onOpenAlbumCommunity)}
+                    </div>
+                  ))}
+                </div>
               </div>
             ) : (
               <div className="home-feed-empty">

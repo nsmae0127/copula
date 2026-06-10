@@ -1,5 +1,5 @@
 import type { CSSProperties, FormEvent } from "react";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import {
   Briefcase,
   CalendarDays,
@@ -21,6 +21,10 @@ import {
   Users,
   Video,
   X,
+  Camera,
+  RotateCcw,
+  Circle,
+  StopCircle,
   type LucideIcon
 } from "lucide-react";
 import type {
@@ -165,6 +169,193 @@ const communityPresets = [
   }
 ];
 
+interface CameraRecorderProps {
+  onFileReady: (file: File | null) => void;
+}
+
+export function CameraRecorder({ onFileReady }: CameraRecorderProps) {
+  const [mode, setMode] = useState<"idle" | "preview" | "recording" | "review">("idle");
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
+  const [timeLeft, setTimeLeft] = useState(1.2); // 1.2s limit
+  
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<any>(null);
+
+  useEffect(() => {
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [stream]);
+
+  const startPreview = async () => {
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+        audio: true
+      });
+      setStream(mediaStream);
+      setMode("preview");
+      setRecordedUrl(null);
+      onFileReady(null);
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+      }
+    } catch (err) {
+      alert("카메라 및 마이크 권한이 필요합니다.");
+      console.error(err);
+    }
+  };
+
+  const startRecording = () => {
+    if (!stream) return;
+    chunksRef.current = [];
+    
+    let options = { mimeType: "video/webm;codecs=vp9" };
+    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+      options = { mimeType: "video/webm;codecs=vp8" };
+    }
+    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+      options = { mimeType: "video/webm" };
+    }
+    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+      options = { mimeType: "video/mp4" };
+    }
+
+    try {
+      const recorder = new MediaRecorder(stream, options);
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          chunksRef.current.push(e.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: "video/webm" });
+        const file = new File([blob], "1s-vlog.webm", { type: "video/webm" });
+        const url = URL.createObjectURL(blob);
+        setRecordedUrl(url);
+        onFileReady(file);
+        setMode("review");
+        
+        if (stream) {
+          stream.getTracks().forEach((track) => track.stop());
+          setStream(null);
+        }
+      };
+
+      setMode("recording");
+      setTimeLeft(1.2);
+      recorder.start();
+
+      const startTime = Date.now();
+      timerRef.current = setInterval(() => {
+        const elapsed = (Date.now() - startTime) / 1000;
+        const remaining = Math.max(0, 1.2 - elapsed);
+        setTimeLeft(remaining);
+        
+        if (remaining <= 0) {
+          clearInterval(timerRef.current);
+          recorder.stop();
+        }
+      }, 50);
+
+    } catch (err) {
+      console.error("녹화 시작 오류:", err);
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+      mediaRecorderRef.current.stop();
+    }
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+  };
+
+  const resetRecorder = () => {
+    setRecordedUrl(null);
+    onFileReady(null);
+    startPreview();
+  };
+
+  return (
+    <div className="camera-recorder-container">
+      {mode === "idle" && (
+        <button type="button" className="secondary-button" onClick={startPreview}>
+          <Camera size={18} style={{ marginRight: "6px" }} />
+          인앱 카메라로 촬영하기
+        </button>
+      )}
+
+      {mode !== "idle" && (
+        <div className="camera-recorder-box">
+          <div className="camera-screen-wrapper">
+            {mode === "preview" || mode === "recording" ? (
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="camera-video-preview"
+              />
+            ) : (
+              recordedUrl && (
+                <video
+                  src={recordedUrl}
+                  autoPlay
+                  loop
+                  controls
+                  playsInline
+                  className="camera-video-preview"
+                />
+              )
+            )}
+            
+            {mode === "recording" && (
+              <div className="recording-timer">
+                <span className="record-dot" />
+                {timeLeft.toFixed(1)}s
+              </div>
+            )}
+          </div>
+
+          <div className="camera-controls">
+            {mode === "preview" && (
+              <button type="button" className="record-button start" onClick={startRecording}>
+                <Circle size={24} fill="red" color="red" />
+                녹화 시작 (1.2초)
+              </button>
+            )}
+            {mode === "recording" && (
+              <button type="button" className="record-button stop" onClick={stopRecording}>
+                <StopCircle size={24} fill="white" color="white" />
+                녹화 완료
+              </button>
+            )}
+            {mode === "review" && (
+              <button type="button" className="record-button retry" onClick={resetRecorder}>
+                <RotateCcw size={16} />
+                다시 촬영
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Modal({
   modal,
   selectedCommunity,
@@ -191,6 +382,7 @@ export function Modal({
 }: ModalProps) {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [recordedFile, setRecordedFile] = useState<File | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
   const dialogRef = useRef<HTMLElement | null>(null);
 
@@ -240,10 +432,14 @@ export function Modal({
       }
 
       if (modal.type === "1sUpload") {
-        const fileInput = event.currentTarget.elements.namedItem("videoFile") as HTMLInputElement | null;
-        const file = fileInput?.files?.[0];
+        let file = recordedFile;
         if (!file) {
-          setError("비디오 파일을 선택해 주세요.");
+          const fileInput = event.currentTarget.elements.namedItem("videoFile") as HTMLInputElement | null;
+          file = fileInput?.files?.[0] || null;
+        }
+
+        if (!file) {
+          setError("비디오 파일을 선택하거나 촬영해 주세요.");
           setIsSubmitting(false);
           return;
         }
@@ -374,7 +570,10 @@ export function Modal({
       if (modal.type === "albumItem" || modal.type === "albumItemEdit") {
         const title = String(data.title ?? "").trim();
         const albumId = String(data.albumId || modal.albumId || selectedAlbumId || "");
-        const file = data.photo instanceof File && data.photo.size > 0 ? data.photo : undefined;
+        
+        const fileInput = event.currentTarget.elements.namedItem("photo") as HTMLInputElement | null;
+        const files = fileInput?.files ? Array.from(fileInput.files) : [];
+
         if (!title) {
           setError("사진·메모 제목을 입력해 주세요.");
           setIsSubmitting(false);
@@ -385,17 +584,26 @@ export function Modal({
           setIsSubmitting(false);
           return;
         }
-        if (file && !file.type.startsWith("image/")) {
-          setError("이미지 파일만 추가할 수 있습니다.");
-          setIsSubmitting(false);
-          return;
+
+        // Validate all files
+        for (const file of files) {
+          if (!file.type.startsWith("image/")) {
+            setError("이미지 파일만 추가할 수 있습니다.");
+            setIsSubmitting(false);
+            return;
+          }
+          if (file.size > 10_000_000) {
+            setError("이미지는 장당 10MB 이하로 추가해 주세요.");
+            setIsSubmitting(false);
+            return;
+          }
         }
-        if (file && file.size > 10_000_000) {
-          setError("이미지는 10MB 이하로 추가해 주세요.");
-          setIsSubmitting(false);
-          return;
-        }
-        const preparedImage = file ? await prepareImageFile(file) : undefined;
+
+        // Process all image files in parallel
+        const preparedImages = await Promise.all(
+          files.map((file) => prepareImageFile(file))
+        );
+
         if (modal.type === "albumItemEdit") {
           if (!modal.itemId) {
             setError("수정할 사진·메모를 찾지 못했습니다.");
@@ -404,15 +612,15 @@ export function Modal({
           }
           await onUpdateAlbumItem(selectedCommunity.id, albumId, modal.itemId, {
             title,
-            file: preparedImage?.file,
-            mediaUrl: preparedImage?.mediaUrl
+            files: preparedImages.length > 0 ? preparedImages.map((img) => img.file) : undefined,
+            mediaUrl: preparedImages.length > 0 ? preparedImages.map((img) => img.mediaUrl).join(",") : undefined
           });
         } else {
           await onAddAlbumItem(selectedCommunity.id, albumId, {
             title,
-            kind: preparedImage ? "photo" : "note",
-            file: preparedImage?.file,
-            mediaUrl: preparedImage?.mediaUrl
+            kind: preparedImages.length > 0 ? "photo" : "note",
+            files: preparedImages.length > 0 ? preparedImages.map((img) => img.file) : undefined,
+            mediaUrl: preparedImages.length > 0 ? preparedImages.map((img) => img.mediaUrl).join(",") : undefined
           });
         }
         onClose();
@@ -492,7 +700,7 @@ export function Modal({
           </button>
         </div>
         <form ref={formRef} className="form-grid" onSubmit={submit} onChange={() => setError("")}>
-          {renderFields(modal, selectedAlbumId, selectedCommunity, applyCommunityPreset)}
+          {renderFields(modal, selectedAlbumId, selectedCommunity, applyCommunityPreset, recordedFile, setRecordedFile)}
           <p className="form-error">{error}</p>
           {renderSubmitButton(modal.type, isSubmitting)}
           {modal.type === "communityEdit" && canDeleteCommunity ? (
@@ -511,7 +719,9 @@ function renderFields(
   modal: ModalState,
   selectedAlbumId: string | null,
   selectedCommunity: Community | null,
-  onCommunityPreset: (preset: (typeof communityPresets)[number]) => void
+  onCommunityPreset: (preset: (typeof communityPresets)[number]) => void,
+  recordedFile: File | null,
+  setRecordedFile: (file: File | null) => void
 ) {
   if (modal.type === "join") {
     return (
@@ -721,11 +931,19 @@ function renderFields(
   if (modal.type === "1sUpload") {
     return (
       <>
-        <label>
+        <label style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           <FieldLabel icon={Video} label="1초 영상" />
-          <input name="videoFile" type="file" accept="video/*" required autoFocus />
+          
+          <CameraRecorder onFileReady={setRecordedFile} />
+          
+          {!recordedFile && (
+            <div style={{ marginTop: "10px" }}>
+              <span style={{ fontSize: "0.8rem", color: "var(--muted)", display: "block", marginBottom: "6px" }}>또는 파일 선택:</span>
+              <input name="videoFile" type="file" accept="video/*" required={!recordedFile} />
+            </div>
+          )}
         </label>
-        <label>
+        <label style={{ marginTop: "12px", display: "block" }}>
           <FieldLabel icon={FileText} label="캡션" />
           <input name="caption" placeholder="오늘 하루는 어땠나요? (1줄 요약)" maxLength={50} />
         </label>
@@ -745,8 +963,8 @@ function renderFields(
           <input name="title" placeholder="단체 사진" defaultValue={albumItem?.title ?? ""} required autoFocus />
         </label>
         <label>
-          <FieldLabel icon={Upload} label={modal.type === "albumItemEdit" ? "사진 변경" : "사진"} />
-          <input name="photo" type="file" accept="image/*" />
+          <FieldLabel icon={Upload} label={modal.type === "albumItemEdit" ? "사진 변경 (여러 장 가능)" : "사진 (여러 장 가능)"} />
+          <input name="photo" type="file" accept="image/*" multiple />
         </label>
       </>
     );

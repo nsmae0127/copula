@@ -27,8 +27,13 @@ export function AlbumItemViewer({
 }: AlbumItemViewerProps) {
   const [message, setMessage] = useState("");
   const dialogRef = useRef<HTMLElement | null>(null);
+  const [activeSlideIndex, setActiveSlideIndex] = useState(0);
 
   useDialogFocusTrap(dialogRef, onClose);
+
+  useEffect(() => {
+    setActiveSlideIndex(0);
+  }, [item]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -98,7 +103,46 @@ export function AlbumItemViewer({
             </button>
           ) : null}
           {item.mediaUrl ? (
-            item.kind === "video" ? (
+            item.mediaUrl.includes(",") ? (
+              <div className="viewer-carousel-container">
+                {activeSlideIndex > 0 && (
+                  <button 
+                    className="carousel-control prev" 
+                    type="button"
+                    onClick={() => setActiveSlideIndex((prev) => prev - 1)}
+                    aria-label="이전 이미지"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                )}
+                
+                <img src={item.mediaUrl.split(",")[activeSlideIndex]} alt={`${item.title} - ${activeSlideIndex + 1}`} />
+                
+                {activeSlideIndex < item.mediaUrl.split(",").length - 1 && (
+                  <button 
+                    className="carousel-control next" 
+                    type="button"
+                    onClick={() => setActiveSlideIndex((prev) => prev + 1)}
+                    aria-label="다음 이미지"
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+                )}
+
+                {/* Dot Indicators */}
+                <div className="carousel-dots">
+                  {item.mediaUrl.split(",").map((_, idx) => (
+                    <button 
+                      key={idx} 
+                      type="button"
+                      className={`carousel-dot ${idx === activeSlideIndex ? "is-active" : ""}`}
+                      onClick={() => setActiveSlideIndex(idx)}
+                      aria-label={`${idx + 1}번 이미지 보기`}
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : item.kind === "video" ? (
               <video
                 src={item.mediaUrl}
                 controls

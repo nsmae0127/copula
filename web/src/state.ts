@@ -947,7 +947,9 @@ export function useCopulaStore() {
                     id: createId("album-item"),
                     title: input.title,
                     kind: input.kind,
-                    mediaUrl: input.mediaUrl,
+                    mediaUrl: input.files && input.files.length > 0
+                      ? input.files.map((f) => URL.createObjectURL(f)).join(",")
+                      : input.mediaUrl,
                     ownerName,
                     createdAt: new Date().toISOString()
                   },
@@ -1561,8 +1563,10 @@ export function useCopulaStore() {
       : {
           ...existing,
           title: input.title,
-          kind: input.mediaUrl ? "photo" as const : existing.kind,
-          mediaUrl: input.mediaUrl ?? existing.mediaUrl
+          kind: input.mediaUrl || (input.files && input.files.length > 0) ? "photo" as const : existing.kind,
+          mediaUrl: input.files && input.files.length > 0
+            ? input.files.map((f) => URL.createObjectURL(f)).join(",")
+            : (input.mediaUrl ?? existing.mediaUrl)
         };
 
     setState((previous) => {

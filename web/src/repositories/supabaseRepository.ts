@@ -26,6 +26,7 @@ import type {
 } from "../types";
 import { createId, initials } from "../utils";
 import type { AuthStateChangeEvent, CopulaRepository, OAuthProvider } from "./repository";
+import { getCachedState, saveCachedState, addToSyncQueue, getSyncQueue, removeSyncQueueItem } from "../utils/offlineCache";
 
 type ProfileRow = {
   id: string;
@@ -281,10 +282,11 @@ export function createSupabaseRepository(): CopulaRepository {
   }
 
   async function loadState(): Promise<CopulaState> {
-    const user = await currentUser();
-    if (!user) {
-      return emptyState();
-    }
+    try {
+      const user = await currentUser();
+      if (!user) {
+        return emptyState();
+      }
 
     const currentProfile = await ensureCurrentProfile(user);
     const communities = await rows<CommunityRow>(
@@ -431,12 +433,22 @@ export function createSupabaseRepository(): CopulaRepository {
       ? mappedCommunities
       : mergeRelationshipOverlay(currentProfile.id, mappedCommunities);
 
-    return {
-      currentUser: mapProfile(currentProfile),
-      selectedCommunityId: communitiesWithRelationships[0]?.id ?? null,
-      communities: communitiesWithRelationships,
-      notifications: notifications.map(mapNotification)
-    };
+      const result = {
+        currentUser: mapProfile(currentProfile),
+        selectedCommunityId: communitiesWithRelationships[0]?.id ?? null,
+        communities: communitiesWithRelationships,
+        notifications: notifications.map(mapNotification)
+      };
+      await saveCachedState(result);
+      return result;
+    } catch (error) {
+      console.warn("loadState failed, trying offline cache:", error);
+      const cached = await getCachedState();
+      if (cached) {
+        return cached;
+      }
+      throw error;
+    }
   }
 
   async function loadCommunity(communityId: string): Promise<Community> {
@@ -693,7 +705,32 @@ export function createSupabaseRepository(): CopulaRepository {
     return path;
   }
 
-  return {
+  async function executeMutation<T>(
+    action: string,
+    args: any[],
+    onlineCallback: () => Promise<T>,
+    offlineFallback: () => T
+  ): Promise<T> {
+    if (!navigator.onLine) {
+      console.warn(`Offline: Queueing ${action}`);
+      await addToSyncQueue(action, args);
+      return offlineFallback();
+    }
+
+    try {
+      return await onlineCallback();
+    } catch (error: any) {
+      const isNetworkError = !navigator.onLine || error.message?.includes("fetch") || error.status === 0;
+      if (isNetworkError) {
+        console.warn(`Network Error: Queueing ${action}`, error);
+        await addToSyncQueue(action, args);
+        return offlineFallback();
+      }
+      throw error;
+    }
+  }
+
+  const repo: CopulaRepository = {
     backend: "supabase",
 
     getInitialState() {
@@ -1066,89 +1103,148 @@ export function createSupabaseRepository(): CopulaRepository {
     },
 
     async addEvent(communityId, event) {
-      const user = await requireUser();
-      const row = await one<CalendarEventRow>(
-        supabase
-          .from("calendar_events")
-          .insert({
-            community_id: communityId,
-            title: event.title,
-            notes: event.notes,
-            location: event.location,
-            starts_at: event.startsAt,
-            created_by: user.id
-          })
-          .select(eventSelect)
-          .single()
-      );
+      return executeMutation(
+        "addEvent",
+        [communityId, event],
+        async () => {
+          const user = await requireUser();
+          const row = await one<CalendarEventRow>(
+            supabase
+              .from("calendar_events")
+              .insert({
+                community_id: communityId,
+                title: event.title,
+                notes: event.notes,
+                location: event.location,
+                starts_at: event.startsAt,
+                created_by: user.id
+              })
+              .select(eventSelect)
+              .single()
+          );
 
-      return mapEvent(row);
+          return mapEvent(row);
+        },
+        () => ({
+          ...event,
+          id: createId("event"),
+          createdAt: new Date().toISOString()
+        })
+      );
     },
 
     async addAlbum(communityId, album) {
-      const user = await requireUser();
-      const row = await one<AlbumRow>(
-        supabase
-          .from("albums")
-          .insert({
-            community_id: communityId,
-            title: album.title,
-            description: album.description,
-            created_by: user.id
-          })
-          .select(albumSelect)
-          .single()
-      );
+      return executeMutation(
+        "addAlbum",
+        [communityId, album],
+        async () => {
+          const user = await requireUser();
+          const row = await one<AlbumRow>(
+            supabase
+              .from("albums")
+              .insert({
+                community_id: communityId,
+                title: album.title,
+                description: album.description,
+                created_by: user.id
+              })
+              .select(albumSelect)
+              .single()
+          );
 
-      return {
-        ...mapAlbum(row, new Map(), new Map(), new Map()),
-        items: []
-      };
+          return {
+            ...mapAlbum(row, new Map(), new Map(), new Map()),
+            items: []
+          };
+        },
+        () => ({
+          id: createId("album"),
+          title: album.title,
+          description: album.description,
+          createdAt: new Date().toISOString(),
+          items: []
+        })
+      );
     },
 
     async addAlbumItem(communityId, albumId, input: AlbumItemInput) {
       const user = await requireUser();
       const profile = await ensureCurrentProfile(user);
-      const mediaPath = input.file
-        ? await uploadAlbumMedia(communityId, albumId, user.id, input.file)
-        : null;
-      const row = await one<AlbumItemRow>(
-        supabase
-          .from("album_items")
-          .insert({
-            community_id: communityId,
-            album_id: albumId,
-            title: input.title,
-            kind: mediaPath ? (input.kind === "video" ? "video" : "photo") : input.kind,
-            media_url: mediaPath,
-            created_by: user.id
-          })
-          .select(albumItemSelect)
-          .single()
-      );
+      return executeMutation(
+        "addAlbumItem",
+        [communityId, albumId, input],
+        async () => {
+          const mediaPaths = input.files && input.files.length > 0
+            ? await Promise.all(input.files.map((f) => uploadAlbumMedia(communityId, albumId, user.id, f)))
+            : [];
+          const mediaUrlString = mediaPaths.length > 0 ? mediaPaths.join(",") : null;
+          const row = await one<AlbumItemRow>(
+            supabase
+              .from("album_items")
+              .insert({
+                community_id: communityId,
+                album_id: albumId,
+                title: input.title,
+                kind: mediaUrlString ? (input.kind === "video" ? "video" : "photo") : input.kind,
+                media_url: mediaUrlString,
+                created_by: user.id
+              })
+              .select(albumItemSelect)
+              .single()
+          );
 
-      const mediaUrls = await createAlbumMediaUrls([row]);
-      return mapAlbumItem(row, new Map([[profile.id, profile]]), mediaUrls);
+          const mediaUrls = await createAlbumMediaUrls([row]);
+          return mapAlbumItem(row, new Map([[profile.id, profile]]), mediaUrls);
+        },
+        () => {
+          const mediaUrl = input.files && input.files.length > 0
+            ? input.files.map((f) => URL.createObjectURL(f)).join(",")
+            : undefined;
+          return {
+            id: createId("albumItem"),
+            albumId,
+            title: input.title,
+            kind: mediaUrl ? (input.kind === "video" ? "video" : "photo") : input.kind,
+            mediaUrl,
+            ownerId: user.id,
+            ownerName: profile.display_name,
+            createdAt: new Date().toISOString()
+          };
+        }
+      );
     },
 
     async addDDay(communityId, dday) {
-      const user = await requireUser();
-      const row = await one<DDayRow>(
-        supabase
-          .from("ddays")
-          .insert({
-            community_id: communityId,
-            title: dday.title,
-            target_date: toDateOnly(dday.targetDate),
-            kind: ddayKindValues[dday.kind],
-            note: dday.note,
-            created_by: user.id
-          })
-          .select(ddaySelect)
-          .single()
-      );
+      return executeMutation(
+        "addDDay",
+        [communityId, dday],
+        async () => {
+          const user = await requireUser();
+          const row = await one<DDayRow>(
+            supabase
+              .from("ddays")
+              .insert({
+                community_id: communityId,
+                title: dday.title,
+                target_date: toDateOnly(dday.targetDate),
+                kind: ddayKindValues[dday.kind],
+                note: dday.note,
+                created_by: user.id
+              })
+              .select(ddaySelect)
+              .single()
+          );
 
-      return mapDDay(row);
+          return mapDDay(row);
+        },
+        () => ({
+          id: createId("dday"),
+          title: dday.title,
+          targetDate: dday.targetDate,
+          kind: dday.kind,
+          note: dday.note || ""
+        })
+      );
     },
 
     async addPair(communityId, pair) {
@@ -1231,76 +1327,86 @@ export function createSupabaseRepository(): CopulaRepository {
 
     async addCommitment(communityId, commitment) {
       const user = await requireUser();
-      try {
-        const visibilityColumns = commitmentVisibilityColumns(commitment.visibility);
-        const row = await one<CommitmentRow>(
-          supabase
-            .from("commitments")
-            .insert({
-              community_id: communityId,
-              title: commitment.title,
-              note: commitment.note,
-              due_at: commitment.dueAt,
-              visibility_type: visibilityColumns.visibility_type,
-              pair_id: visibilityColumns.pair_id,
-              circle_id: visibilityColumns.circle_id,
-              created_by: user.id
-            })
-            .select(commitmentSelect)
-            .single()
-        );
-
-        if (commitment.assigneeIds.length) {
-          await rows<CommitmentAssigneeRow>(
+      return executeMutation(
+        "addCommitment",
+        [communityId, commitment],
+        async () => {
+          const visibilityColumns = commitmentVisibilityColumns(commitment.visibility);
+          const row = await one<CommitmentRow>(
             supabase
-              .from("commitment_assignees")
-              .insert(
-                commitment.assigneeIds.map((memberId) => ({
-                  community_id: communityId,
-                  commitment_id: row.id,
-                  member_id: memberId
-                }))
-              )
-              .select(commitmentAssigneeSelect)
+              .from("commitments")
+              .insert({
+                community_id: communityId,
+                title: commitment.title,
+                note: commitment.note,
+                due_at: commitment.dueAt,
+                visibility_type: visibilityColumns.visibility_type,
+                pair_id: visibilityColumns.pair_id,
+                circle_id: visibilityColumns.circle_id,
+                created_by: user.id
+              })
+              .select(commitmentSelect)
+              .single()
           );
-        }
 
-        return mapCommitment(row, new Map([[row.id, commitment.assigneeIds.map((memberId) => ({
-          commitment_id: row.id,
-          member_id: memberId
-        }))]]));
-      } catch (error) {
-        if (isMissingRelationshipTables(error)) {
-          return {
-            ...commitment,
-            id: createId("commitment"),
-            status: "open",
-            createdAt: new Date().toISOString(),
-            createdByUserId: user.id
-          };
-        }
+          if (commitment.assigneeIds.length) {
+            await rows<CommitmentAssigneeRow>(
+              supabase
+                .from("commitment_assignees")
+                .insert(
+                  commitment.assigneeIds.map((memberId) => ({
+                    community_id: communityId,
+                    commitment_id: row.id,
+                    member_id: memberId
+                  }))
+                )
+                .select(commitmentAssigneeSelect)
+            );
+          }
 
-        throw error;
-      }
+          return mapCommitment(row, new Map([[row.id, commitment.assigneeIds.map((memberId) => ({
+            commitment_id: row.id,
+            member_id: memberId
+          }))]]));
+        },
+        () => ({
+          ...commitment,
+          id: createId("commitment"),
+          status: "open",
+          createdAt: new Date().toISOString(),
+          createdByUserId: user.id
+        })
+      );
     },
 
     async addNotice(communityId, notice) {
-      const user = await requireUser();
-      const row = await one<NoticeRow>(
-        supabase
-          .from("notices")
-          .insert({
-            community_id: communityId,
-            title: notice.title,
-            body: notice.body,
-            pinned: notice.pinned,
-            created_by: user.id
-          })
-          .select(noticeSelect)
-          .single()
-      );
+      return executeMutation(
+        "addNotice",
+        [communityId, notice],
+        async () => {
+          const user = await requireUser();
+          const row = await one<NoticeRow>(
+            supabase
+              .from("notices")
+              .insert({
+                community_id: communityId,
+                title: notice.title,
+                body: notice.body,
+                pinned: notice.pinned,
+                created_by: user.id
+              })
+              .select(noticeSelect)
+              .single()
+          );
 
-      return mapNotice(row);
+          return mapNotice(row);
+        },
+        () => ({
+          ...notice,
+          id: createId("notice"),
+          createdAt: new Date().toISOString()
+        })
+      );
     },
 
     async updateEvent(communityId, eventId, event) {
@@ -1347,25 +1453,20 @@ export function createSupabaseRepository(): CopulaRepository {
     async updateAlbumItem(communityId, albumId, itemId, input: AlbumItemUpdateInput) {
       const user = await requireUser();
       const profile = await ensureCurrentProfile(user);
-      const existing = await maybeOne<{ media_url: string | null }>(
-        supabase
-          .from("album_items")
-          .select("media_url")
-          .eq("community_id", communityId)
-          .eq("album_id", albumId)
-          .eq("id", itemId)
-          .maybeSingle()
+      const existing = await maybeOne<AlbumItemRow>(
+        supabase.from("album_items").select(albumItemSelect).eq("id", itemId).maybeSingle()
       );
-      const mediaPath = input.file
-        ? await uploadAlbumMedia(communityId, albumId, user.id, input.file)
-        : null;
+      const mediaPaths = input.files && input.files.length > 0
+        ? await Promise.all(input.files.map((f) => uploadAlbumMedia(communityId, albumId, user.id, f)))
+        : [];
+      const mediaUrlString = mediaPaths.length > 0 ? mediaPaths.join(",") : null;
       const changes: { title: string; kind?: "photo"; media_url?: string } = {
         title: input.title
       };
 
-      if (mediaPath) {
+      if (mediaUrlString) {
         changes.kind = "photo";
-        changes.media_url = mediaPath;
+        changes.media_url = mediaUrlString;
       }
 
       const row = await one<AlbumItemRow>(
@@ -1379,8 +1480,9 @@ export function createSupabaseRepository(): CopulaRepository {
           .single()
       );
 
-      if (mediaPath && existing?.media_url) {
-        await supabase.storage.from("album-media").remove([existing.media_url]);
+      if (mediaPaths.length > 0 && existing?.media_url) {
+        const oldPaths = existing.media_url.split(",");
+        await supabase.storage.from("album-media").remove(oldPaths);
       }
 
       const mediaUrls = await createAlbumMediaUrls([row]);
@@ -1642,7 +1744,7 @@ export function createSupabaseRepository(): CopulaRepository {
           .insert({
             user_id: user.id,
             community_id: communityId,
-            kind: kind === "1s" ? "notice" : kind,
+            kind: kind === "1s" || kind === "nudge" ? "notice" : kind,
             title,
             body
           })
@@ -1658,7 +1760,7 @@ export function createSupabaseRepository(): CopulaRepository {
       const excludeCurrentUser = options?.excludeCurrentUser ?? true;
       const { error: rpcError } = await supabase.rpc("create_community_notifications", {
         p_community_id: communityId,
-        p_kind: kind === "1s" ? "notice" : kind,
+        p_kind: kind === "1s" || kind === "nudge" ? "notice" : kind,
         p_title: title,
         p_body: body,
         p_exclude_current_user: excludeCurrentUser
@@ -1730,6 +1832,63 @@ export function createSupabaseRepository(): CopulaRepository {
       }
     }
   };
+
+  async function syncOfflineMutations() {
+    if (!navigator.onLine) return;
+    const queue = await getSyncQueue();
+    if (!queue.length) return;
+
+    console.log(`Syncing ${queue.length} offline mutations to Supabase...`);
+    for (const item of queue) {
+      try {
+        if (item.action === "addNotice" && repo.addNotice) {
+          await repo.addNotice(item.args[0], item.args[1]);
+        } else if (item.action === "addEvent" && repo.addEvent) {
+          await repo.addEvent(item.args[0], item.args[1]);
+        } else if (item.action === "addAlbum" && repo.addAlbum) {
+          await repo.addAlbum(item.args[0], item.args[1]);
+        } else if (item.action === "addAlbumItem" && repo.addAlbumItem) {
+          await repo.addAlbumItem(item.args[0], item.args[1], item.args[2]);
+        } else if (item.action === "addDDay" && repo.addDDay) {
+          await repo.addDDay(item.args[0], item.args[1]);
+        } else if (item.action === "addCommitment" && repo.addCommitment) {
+          await repo.addCommitment(item.args[0], item.args[1]);
+        } else if (item.action === "toggleCommitment" && repo.toggleCommitment) {
+          await repo.toggleCommitment(item.args[0], item.args[1]);
+        } else if (item.action === "deleteNotice" && repo.deleteNotice) {
+          await repo.deleteNotice(item.args[0], item.args[1]);
+        } else if (item.action === "deleteEvent" && repo.deleteEvent) {
+          await repo.deleteEvent(item.args[0], item.args[1]);
+        } else if (item.action === "deleteAlbum" && repo.deleteAlbum) {
+          await repo.deleteAlbum(item.args[0], item.args[1]);
+        } else if (item.action === "deleteAlbumItem" && repo.deleteAlbumItem) {
+          await repo.deleteAlbumItem(item.args[0], item.args[1], item.args[2]);
+        } else if (item.action === "deleteDDay" && repo.deleteDDay) {
+          await repo.deleteDDay(item.args[0], item.args[1]);
+        } else if (item.action === "deleteCommitment" && repo.deleteCommitment) {
+          await repo.deleteCommitment(item.args[0], item.args[1]);
+        }
+        
+        if (item.id !== undefined) {
+          await removeSyncQueueItem(item.id);
+        }
+      } catch (err) {
+        console.error(`Failed to sync action ${item.action}:`, err);
+        break;
+      }
+    }
+  }
+
+  if (typeof window !== "undefined") {
+    window.addEventListener("online", () => {
+      syncOfflineMutations().catch(console.error);
+    });
+    if (navigator.onLine) {
+      syncOfflineMutations().catch(console.error);
+    }
+  }
+
+  return repo;
 }
 
 async function rows<T>(query: PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>) {
@@ -1887,11 +2046,19 @@ function mapAlbumItem(
   profiles: Map<string, ProfileRow>,
   mediaUrls: Map<string, string>
 ): AlbumItem {
+  const urls: string[] = [];
+  if (row.media_url) {
+    row.media_url.split(",").forEach((p) => {
+      const trimmed = p.trim();
+      const signed = mediaUrls.get(trimmed);
+      if (signed) urls.push(signed);
+    });
+  }
   return {
     id: row.id,
     title: row.title,
     kind: row.kind,
-    mediaUrl: row.media_url ? mediaUrls.get(row.media_url) : undefined,
+    mediaUrl: urls.length > 0 ? urls.join(",") : undefined,
     ownerName: profiles.get(row.created_by)?.display_name ?? "멤버",
     createdAt: row.created_at
   };
@@ -2073,7 +2240,7 @@ function normalizeStoredCommunityModules(modules: unknown): CommunityModule[] {
 function mapNotification(row: NotificationRow): CopulaNotification {
   return {
     id: row.id,
-    kind: row.kind,
+    kind: row.title === "콕 찌르기 ⚡️" ? "nudge" : row.kind,
     communityId: row.community_id ?? undefined,
     title: row.title,
     body: row.body,
@@ -2122,14 +2289,24 @@ function toDateOnly(value: string) {
 }
 
 async function createAlbumMediaUrls(items: AlbumItemRow[]) {
-  const paths = [...new Set(items.map((item) => item.media_url).filter(Boolean))] as string[];
+  const paths: string[] = [];
+  items.forEach((item) => {
+    if (item.media_url) {
+      item.media_url.split(",").forEach((p) => {
+        const trimmed = p.trim();
+        if (trimmed) paths.push(trimmed);
+      });
+    }
+  });
+
+  const uniquePaths = [...new Set(paths)];
   const mediaUrls = new Map<string, string>();
-  if (!paths.length) {
+  if (!uniquePaths.length) {
     return mediaUrls;
   }
 
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase.storage.from("album-media").createSignedUrls(paths, 60 * 60);
+  const { data, error } = await supabase.storage.from("album-media").createSignedUrls(uniquePaths, 60 * 60);
   if (error) {
     return mediaUrls;
   }

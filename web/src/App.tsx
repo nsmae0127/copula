@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Layout } from "./components/Layout";
 import { clearStoredAuthReturnError, readStoredAuthReturnError } from "./authReturn";
 import { useCopulaStore } from "./state";
+import { playTapSound } from "./utils/soundEffects";
 import type { Community, CommunityModule, CopulaNotification, ModalType, Role, ViewName } from "./types";
 
 const AlbumItemViewer = lazy(() =>
@@ -763,6 +764,12 @@ export function App() {
           onDeleteDDay={requestDeleteDDay}
           onUpdateMemberRole={updateMemberRole}
           onRemoveMember={requestRemoveMember}
+          onNudgeMember={async (memberId, memberName) => {
+            if (!selectedCommunity) return;
+            playTapSound();
+            actions.notify("nudge", "콕 찌르기 ⚡️", `${state.currentUser?.name}님이 회원님을 콕 찔렀습니다!`, selectedCommunity.id);
+            showToast(`${memberName}님을 콕 찔렀습니다!`);
+          }}
           canManageRelationships={
             selectedCommunity?.members.some(
               (member) =>
@@ -824,7 +831,7 @@ export function App() {
             await actions.addAlbumItem(communityId, albumId, {
               title: `${formattedDate} Vlog`,
               kind: "video",
-              file: videoFile
+              files: [videoFile]
             });
           }}
         />

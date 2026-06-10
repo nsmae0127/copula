@@ -11,6 +11,7 @@ import {
   Megaphone,
   MessageCircle,
   Pencil,
+  Sparkles,
   Trash2,
   type LucideIcon,
   Users,
@@ -271,7 +272,12 @@ export function AlbumItemRow({
     <article className={`card row album-item-row ${item.mediaUrl ? "has-media" : ""}`}>
       <button className="album-item-main" onClick={onClick} type="button">
         {item.mediaUrl ? (
-          <img className="album-item-thumb" src={item.mediaUrl} alt="" />
+          <div className="album-item-thumb-wrapper">
+            <img className="album-item-thumb" src={item.mediaUrl.split(",")[0]} alt="" />
+            {item.mediaUrl.includes(",") && (
+              <span className="media-badge">+{item.mediaUrl.split(",").length - 1}</span>
+            )}
+          </div>
         ) : (
           <span className="avatar" style={{ "--accent": "var(--teal)" } as CSSProperties}>
             <Image aria-hidden="true" />
@@ -333,10 +339,14 @@ function toDateKey(date: Date) {
 export function MemberRow({
   member,
   community,
+  currentUserId,
+  onNudge,
   action
 }: {
   member: CommunityMember;
   community: Community;
+  currentUserId?: string;
+  onNudge?: (member: CommunityMember) => void;
   action?: ReactNode;
 }) {
   const todayKey = toDateKey(new Date());
@@ -365,7 +375,20 @@ export function MemberRow({
           {member.handle} · {roleLabel(member.role)}
         </span>
       </div>
-      {action ? <div className="row-actions">{action}</div> : null}
+      <div className="row-actions" style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+        {onNudge && currentUserId && member.userId !== currentUserId && (
+          <button
+            className="icon-button compact nudge-btn"
+            onClick={() => onNudge(member)}
+            title={`${member.name}님 콕 찌르기`}
+            aria-label={`${member.name}님 콕 찌르기`}
+            type="button"
+          >
+            <Sparkles size={14} />
+          </button>
+        )}
+        {action}
+      </div>
     </article>
   );
 }
@@ -427,7 +450,8 @@ function notificationGradient(kind: NotificationKind) {
     notice: "linear-gradient(135deg, #F0717A, #BFA8E6)",
     commitment: "linear-gradient(135deg, #6FB7A5, #8C74BA)",
     message: "linear-gradient(135deg, #F0717A, #8C74BA)",
-    "1s": "linear-gradient(135deg, #8C74BA, #F6A8BE)"
+    "1s": "linear-gradient(135deg, #8C74BA, #F6A8BE)",
+    nudge: "linear-gradient(135deg, #FFD56A, #F0717A)"
   };
   return gradients[kind] ?? "linear-gradient(135deg, #F0717A, #8C74BA)";
 }
@@ -441,7 +465,8 @@ function notificationIcon(kind: NotificationKind) {
     notice: Megaphone,
     commitment: ListTodo,
     message: MessageCircle,
-    "1s": Video
+    "1s": Video,
+    nudge: Sparkles
   };
   return icons[kind] ?? Bell;
 }

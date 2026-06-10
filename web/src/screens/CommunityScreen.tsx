@@ -95,6 +95,7 @@ interface CommunityScreenProps {
   onOpenOneSecondUpload: () => void;
   onDeleteOneSecondLog: (logId: string) => void;
   onAddMergedVlogToAlbum: (communityId: string, dateKey: string, videoFile: File) => Promise<void> | void;
+  onNudgeMember?: (memberId: string, memberName: string) => void;
 }
 
 type CoreContentModule = "feed" | "members";
@@ -226,7 +227,8 @@ export function CommunityScreen({
   onCopyInviteCode,
   onOpenOneSecondUpload,
   onDeleteOneSecondLog,
-  onAddMergedVlogToAlbum
+  onAddMergedVlogToAlbum,
+  onNudgeMember
 }: CommunityScreenProps) {
   const [isContentManagerOpen, setIsContentManagerOpen] = useState(false);
   const [pendingContentModule, setPendingContentModule] = useState<OptionalContentModule | null>(null);
@@ -389,6 +391,7 @@ export function CommunityScreen({
           onRegenerateInviteCode={onRegenerateInviteCode}
           onCopyInviteCode={onCopyInviteCode}
           onModuleChange={onModuleChange}
+          onNudgeMember={onNudgeMember}
         />
       ) : null}
       {activeModuleIsAvailable && activeModule === "1s" ? (
@@ -1325,7 +1328,12 @@ function FeedModule({
                   {item.mediaKind === "video" ? (
                     <video src={item.mediaUrl} muted playsInline preload="metadata" />
                   ) : (
-                    <img src={item.mediaUrl} alt="" loading="lazy" decoding="async" />
+                    <>
+                      <img src={item.mediaUrl.split(",")[0]} alt="" loading="lazy" decoding="async" />
+                      {item.mediaUrl.includes(",") && (
+                        <span className="media-badge">+{item.mediaUrl.split(",").length - 1}</span>
+                      )}
+                    </>
                   )}
                 </span>
               ) : null}
@@ -2864,7 +2872,10 @@ function AlbumModule({
                   onClick={() => onOpenAlbumItemDetail(selectedAlbum.id, item.id)}
                   type="button"
                 >
-                  <img src={item.mediaUrl} alt={item.title} />
+                  <img src={item.mediaUrl?.split(",")[0] ?? ""} alt={item.title} />
+                  {item.mediaUrl?.includes(",") && (
+                    <span className="media-badge">+{item.mediaUrl.split(",").length - 1}</span>
+                  )}
                   <span>{item.title}</span>
                 </button>
               ))}
@@ -2960,7 +2971,8 @@ function MembersModule({
   onRemoveMember,
   onRegenerateInviteCode,
   onCopyInviteCode,
-  onModuleChange
+  onModuleChange,
+  onNudgeMember
 }: {
   community: Community;
   currentUserId: string;
@@ -2969,6 +2981,7 @@ function MembersModule({
   onRegenerateInviteCode: () => void;
   onCopyInviteCode: () => void;
   onModuleChange: (module: CommunityModule) => void;
+  onNudgeMember?: (memberId: string, memberName: string) => void;
 }) {
   const currentMember = community.members.find((member) => member.userId === currentUserId);
   const canManageMembers = currentMember?.role === "owner" || currentMember?.role === "admin";
@@ -3004,6 +3017,8 @@ function MembersModule({
               key={member.id}
               member={member}
               community={community}
+              currentUserId={currentUserId}
+              onNudge={onNudgeMember ? (m) => onNudgeMember(m.userId, m.name) : undefined}
               action={renderMemberAction({
                 member,
                 currentMember,

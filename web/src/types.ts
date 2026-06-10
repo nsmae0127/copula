@@ -24,7 +24,7 @@ export type ModalType =
   | "dday"
   | "ddayEdit"
   | "1sUpload";
-export type NotificationKind = "invite" | "calendar" | "album" | "dday" | "notice" | "commitment" | "message" | "1s";
+export type NotificationKind = "invite" | "calendar" | "album" | "dday" | "notice" | "commitment" | "message" | "1s" | "nudge";
 export type AlbumItemKind = "photo" | "note" | "video";
 export type CommitmentStatus = "open" | "done";
 
@@ -83,13 +83,13 @@ export interface AlbumItem {
 export interface AlbumItemInput {
   title: string;
   kind: AlbumItemKind;
-  file?: File;
+  files?: File[];
   mediaUrl?: string;
 }
 
 export interface AlbumItemUpdateInput {
   title: string;
-  file?: File;
+  files?: File[];
   mediaUrl?: string;
 }
 

@@ -59,6 +59,91 @@ export function HomeScreen({
   const [focusMode, setFocusMode] = useState(false);
   const [activeAccent, setActiveAccent] = useState("#8c74ba");
 
+  // 1. 실시간 오라 무드 램프 상태
+  const moodPresets = [
+    { label: "연락 가능", emoji: "💚", color1: "#3cd070", color2: "#5ce1e6" },
+    { label: "바쁨/집중", emoji: "❤️", color1: "#ff5252", color2: "#f68080" },
+    { label: "휴식 중", emoji: "💜", color1: "#8c74ba", color2: "#a18cd1" },
+    { label: "외출/이동", emoji: "💛", color1: "#ffb900", color2: "#ff9a00" }
+  ];
+  
+  const [myMood, setMyMood] = useState(() => {
+    const saved = localStorage.getItem("copula-my-mood");
+    if (saved) {
+      const found = moodPresets.find(m => m.label === saved);
+      if (found) return found;
+    }
+    return moodPresets[0];
+  });
+
+  const [partnerMood, setPartnerMood] = useState(moodPresets[2]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const remainingPresets = moodPresets.filter(m => m.label !== partnerMood.label);
+      const randomMood = remainingPresets[Math.floor(Math.random() * remainingPresets.length)];
+      setPartnerMood(randomMood);
+      triggerHaptic(20);
+    }, 30000);
+    return () => clearInterval(timer);
+  }, [partnerMood]);
+
+  const handleMyMoodChange = (mood: typeof moodPresets[0]) => {
+    triggerHaptic(35);
+    setMyMood(mood);
+    localStorage.setItem("copula-my-mood", mood.label);
+  };
+
+  // 3. 필터 칩 슬라이더 상태
+  const [feedFilter, setFeedFilter] = useState<"all" | "commitment" | "event" | "album" | "notice">("all");
+  const filterContainerRef = useRef<HTMLDivElement | null>(null);
+  const [indicatorStyle, setIndicatorStyle] = useState<CSSProperties>({});
+
+  const filterOptions = [
+    { value: "all", label: "전체" },
+    { value: "commitment", label: "약속" },
+    { value: "event", label: "일정" },
+    { value: "album", label: "앨범" },
+    { value: "notice", label: "공지" },
+  ];
+
+  useEffect(() => {
+    const container = filterContainerRef.current;
+    if (!container) return;
+    const activeBtn = container.querySelector(`.filter-chip-btn.active`) as HTMLButtonElement | null;
+    if (activeBtn) {
+      setIndicatorStyle({
+        transform: `translateX(${activeBtn.offsetLeft}px)`,
+        width: `${activeBtn.offsetWidth}px`,
+        opacity: 1
+      });
+    } else {
+      setIndicatorStyle({ opacity: 0 });
+    }
+  }, [feedFilter]);
+
+  // 4. 플로팅 디데이 버블 상태
+  const [bubbleOpen, setBubbleOpen] = useState(false);
+  const [bubbleParticles, setBubbleParticles] = useState<{ id: number; x: number; y: number; emoji: string }[]>([]);
+
+  const handleBubbleClick = () => {
+    triggerHaptic([40, 20, 40]);
+    const newParticles = Array.from({ length: 12 }).map((_, i) => {
+      const angle = (Math.PI * 2 * i) / 12;
+      return {
+        id: Date.now() + i,
+        x: Math.cos(angle) * 35,
+        y: Math.sin(angle) * 35,
+        emoji: ["✨", "💖", "🎂", "🎉", "✈️"][Math.floor(Math.random() * 5)]
+      };
+    });
+    setBubbleParticles(newParticles);
+    setBubbleOpen(true);
+    setTimeout(() => {
+      setBubbleParticles([]);
+    }, 800);
+  };
+
   // Pull to Refresh state & refs
   const [pullOffset, setPullOffset] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -212,15 +297,25 @@ export function HomeScreen({
     })
   ] : [];
 
+  // 필터링 적용
+  const filteredFeed = allFeedItems.filter(item => {
+    if (feedFilter === "all") return true;
+    return item.type === feedFilter;
+  });
+
   // Home은 모든 Copula의 최신 활동을 시간순으로 모아 보여준다.
-  const sortedFeed = allFeedItems.sort(
+  const sortedFeed = filteredFeed.sort(
     (a, b) => new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime()
   );
 
   return (
     <div 
       className={`home-screen-container ${focusMode ? "focus-mode-active" : ""}`}
-      style={{ "--dynamic-accent-glow": activeAccent } as any}
+      style={{
+        "--dynamic-accent-glow": activeAccent,
+        "--aura-color-1": myMood.color1,
+        "--aura-color-2": partnerMood.color1
+      } as any}
       onDoubleClick={() => setFocusMode((prev) => !prev)}
       title="화면 빈 곳을 더블 클릭하여 몰입 모드(Focus Mode) 토글"
     >
@@ -252,6 +347,36 @@ export function HomeScreen({
         </section>
       ) : (
         <>
+          {/* 실시간 오라 무드 램프 패널 */}
+          <section className="home-mood-auras-section">
+            <div className="mood-auras-header">
+              <span className="eyebrow">실시간 무드 램프</span>
+              <span className="mood-auras-status">
+                상대방은 지금 <strong>{partnerMood.emoji} {partnerMood.label}</strong>
+              </span>
+            </div>
+            
+            <div className="mood-auras-panel">
+              <div className="my-mood-picker">
+                <span className="picker-label">내 기분:</span>
+                <div className="mood-chips-container">
+                  {moodPresets.map((mood) => (
+                    <button
+                      key={mood.label}
+                      type="button"
+                      className={`mood-chip-btn ${myMood.label === mood.label ? "active" : ""}`}
+                      onClick={() => handleMyMoodChange(mood)}
+                      title={mood.label}
+                    >
+                      <span className="mood-chip-emoji">{mood.emoji}</span>
+                      <span className="mood-chip-text">{mood.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+
           {/* 가로형 My Copula 스토리 바 */}
           <section className="home-stories-section">
             <div className="stories-scroll-container">
@@ -353,6 +478,24 @@ export function HomeScreen({
 
           {/* 인스타 피드 스냅 컨테이너 */}
           <section className="home-feed-section">
+            <div className="feed-filter-chips-container" ref={filterContainerRef}>
+              <div className="feed-filter-chips-scroll">
+                {filterOptions.map((opt) => (
+                  <button
+                    key={opt.value}
+                    className={`filter-chip-btn ${feedFilter === opt.value ? "active" : ""}`}
+                    onClick={() => {
+                      triggerHaptic(25);
+                      setFeedFilter(opt.value as any);
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+                <div className="active-filter-indicator" style={indicatorStyle} />
+              </div>
+            </div>
+
             {sortedFeed.length > 0 ? (
               <div 
                 className="home-feed-container-wrapper"
@@ -420,6 +563,48 @@ export function HomeScreen({
           currentUserId={currentUserId}
           onClose={() => setActiveStoryCommunity(null)}
           onDeleteLog={onDeleteOneSecondLog}
+        />
+      )}
+
+      {/* 플로팅 디데이 버블 */}
+      {ddayItems.length > 0 && (
+        <div className="floating-dday-bubble-wrapper">
+          <button 
+            type="button" 
+            className="floating-dday-bubble"
+            onClick={handleBubbleClick}
+            aria-label="디데이 카운트다운 버블"
+          >
+            <span className="dday-bubble-emoji">💖</span>
+            <span className="dday-bubble-text">
+              {daysUntil(ddayItems[0].targetDate) === 0 ? "D-Day" : `D-${daysUntil(ddayItems[0].targetDate)}`}
+            </span>
+            
+            {/* 버블 팝 이펙트 파티클 */}
+            {bubbleParticles.map((p) => (
+              <span
+                key={p.id}
+                className="bubble-pop-particle"
+                style={{
+                  "--px": `${p.x}px`,
+                  "--py": `${p.y}px`
+                } as CSSProperties}
+              >
+                {p.emoji}
+              </span>
+            ))}
+          </button>
+        </div>
+      )}
+
+      {/* 디데이 상세 카운트다운 모달 */}
+      {bubbleOpen && ddayItems.length > 0 && (
+        <DdayCountdownModal 
+          dday={ddayItems[0]} 
+          onClose={() => {
+            triggerHaptic(30);
+            setBubbleOpen(false);
+          }} 
         />
       )}
 
@@ -559,19 +744,7 @@ function renderFeedCard(
 
         {type === "album" && (
           <div className="feed-content-album">
-            {albumCoverItem?.mediaUrl ? (
-              <div className="album-media-container">
-                {albumCoverItem.kind === "video" ? (
-                  <video src={albumCoverItem.mediaUrl} muted playsInline loop autoPlay preload="metadata" className="feed-album-media" />
-                ) : (
-                  <img src={albumCoverItem.mediaUrl} alt={albumCoverItem.title} loading="lazy" decoding="async" className="feed-album-media" />
-                )}
-              </div>
-            ) : (
-              <div className="album-placeholder-icon">
-                <Image size={36} />
-              </div>
-            )}
+            <AlbumCarousel album={data} />
           </div>
         )}
 
@@ -774,6 +947,233 @@ function ReactionButton({ feedId, emoji }: { feedId: string; emoji: string }) {
             {p.emoji}
           </span>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// 2. Cinematic Album Carousel Component
+function AlbumCarousel({ album }: { album: any }) {
+  const items = album.items || [];
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [dragOffset, setDragOffset] = useState(0);
+  const isDragging = useRef(false);
+  const dragStart = useRef(0);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  const fallbackUrls = [
+    "https://images.unsplash.com/photo-1518199266791-5375a83190b7?q=80&w=600&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=600&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?q=80&w=600&auto=format&fit=crop"
+  ];
+
+  const slides = items.length > 0 ? items.map((item: any, idx: number) => ({
+    id: item.id,
+    url: item.mediaUrl || fallbackUrls[idx % fallbackUrls.length],
+    title: item.title,
+    kind: item.kind
+  })) : [
+    { id: "dummy-1", url: fallbackUrls[0], title: "사랑하는 순간", kind: "photo" },
+    { id: "dummy-2", url: fallbackUrls[1], title: "함께 걷던 길", kind: "photo" },
+    { id: "dummy-3", url: fallbackUrls[2], title: "기억하고 싶은 날", kind: "photo" },
+  ];
+
+  if (slides.length === 1) {
+    slides.push(
+      { id: "dummy-2", url: fallbackUrls[1], title: "함께 걷던 길", kind: "photo" },
+      { id: "dummy-3", url: fallbackUrls[2], title: "기억하고 싶은 날", kind: "photo" }
+    );
+  }
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    isDragging.current = true;
+    dragStart.current = e.touches[0].clientX;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging.current) return;
+    const currentX = e.touches[0].clientX;
+    const diff = currentX - dragStart.current;
+    setDragOffset(diff);
+  };
+
+  const handleTouchEnd = () => {
+    if (!isDragging.current) return;
+    isDragging.current = false;
+    
+    const threshold = 80;
+    if (dragOffset < -threshold && currentIndex < slides.length - 1) {
+      setCurrentIndex((prev) => prev + 1);
+      triggerHaptic(20);
+    } else if (dragOffset > threshold && currentIndex > 0) {
+      setCurrentIndex((prev) => prev - 1);
+      triggerHaptic(20);
+    }
+    setDragOffset(0);
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    isDragging.current = true;
+    dragStart.current = e.clientX;
+    e.preventDefault();
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging.current) return;
+    const diff = e.clientX - dragStart.current;
+    setDragOffset(diff);
+  };
+
+  const handleMouseUpOrLeave = () => {
+    if (!isDragging.current) return;
+    isDragging.current = false;
+    const threshold = 80;
+    if (dragOffset < -threshold && currentIndex < slides.length - 1) {
+      setCurrentIndex((prev) => prev + 1);
+      triggerHaptic(20);
+    } else if (dragOffset > threshold && currentIndex > 0) {
+      setCurrentIndex((prev) => prev - 1);
+      triggerHaptic(20);
+    }
+    setDragOffset(0);
+  };
+
+  const baseTranslate = -currentIndex * 100;
+  const containerWidth = containerRef.current?.offsetWidth || 300;
+  const dragPercent = (dragOffset / containerWidth) * 100;
+  const stretch = Math.min(1.15, 1 + Math.abs(dragPercent) * 0.003);
+
+  return (
+    <div 
+      ref={containerRef}
+      className="album-carousel-container"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUpOrLeave}
+      onMouseLeave={handleMouseUpOrLeave}
+    >
+      <div 
+        className="album-carousel-track"
+        style={{
+          transform: `translateX(calc(${baseTranslate}% + ${dragOffset}px)) scaleX(${stretch})`,
+          transition: isDragging.current ? "none" : "transform 0.45s cubic-bezier(0.25, 1.25, 0.5, 1)"
+        }}
+      >
+        {slides.map((slide: any, idx: number) => {
+          const offsetPercent = (idx - currentIndex) * 20 + dragPercent * 0.2;
+          return (
+            <div className="album-carousel-slide" key={slide.id}>
+              <div className="slide-media-wrap">
+                {slide.kind === "video" ? (
+                  <video 
+                    src={slide.url} 
+                    muted 
+                    playsInline 
+                    loop 
+                    autoPlay 
+                    className="carousel-media"
+                    style={{
+                      transform: `translateX(${offsetPercent}px)`,
+                      transition: isDragging.current ? "none" : "transform 0.45s cubic-bezier(0.25, 1.25, 0.5, 1)"
+                    }}
+                  />
+                ) : (
+                  <img 
+                    src={slide.url} 
+                    alt={slide.title} 
+                    className="carousel-media" 
+                    loading="lazy" 
+                    decoding="async"
+                    style={{
+                      transform: `translateX(${offsetPercent}px)`,
+                      transition: isDragging.current ? "none" : "transform 0.45s cubic-bezier(0.25, 1.25, 0.5, 1)"
+                    }}
+                  />
+                )}
+                {slide.title && <div className="slide-title-overlay">{slide.title}</div>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {slides.length > 1 && (
+        <div className="carousel-dots">
+          {slides.map((_: any, idx: number) => (
+            <span 
+              key={idx} 
+              className={`carousel-dot ${idx === currentIndex ? "active" : ""}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                triggerHaptic(15);
+                setCurrentIndex(idx);
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// 4. D-Day Detailed Countdown Modal Component
+function DdayCountdownModal({ dday, onClose }: { dday: any; onClose: () => void }) {
+  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date().getTime();
+      const target = new Date(dday.targetDate).getTime();
+      const diff = target - now;
+
+      if (diff <= 0) {
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+      } else {
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+        setTimeLeft({ days, hours, minutes, seconds });
+      }
+    };
+
+    updateTime();
+    const timer = setInterval(updateTime, 1000);
+    return () => clearInterval(timer);
+  }, [dday.targetDate]);
+
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <div className="modal dday-countdown-dialog" role="dialog" onClick={(e) => e.stopPropagation()}>
+        <div className="countdown-emoji">🎉</div>
+        <h3>{dday.title}</h3>
+        <p className="countdown-target-date">목표일: {new Date(dday.targetDate).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })}</p>
+        
+        <div className="countdown-timer-container">
+          <div className="timer-segment">
+            <span className="timer-number">{timeLeft.days}</span>
+            <span className="timer-label">일</span>
+          </div>
+          <div className="timer-segment">
+            <span className="timer-number">{timeLeft.hours}</span>
+            <span className="timer-label">시간</span>
+          </div>
+          <div className="timer-segment">
+            <span className="timer-number">{timeLeft.minutes}</span>
+            <span className="timer-label">분</span>
+          </div>
+          <div className="timer-segment">
+            <span className="timer-number">{timeLeft.seconds}</span>
+            <span className="timer-label">초</span>
+          </div>
+        </div>
+        
+        <button className="primary-button countdown-close-btn" onClick={onClose} type="button">
+          닫기
+        </button>
       </div>
     </div>
   );

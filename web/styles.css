@@ -11241,3 +11241,396 @@ body.dark-theme .settings-row-btn:hover {
     opacity: 0;
   }
 }
+
+/* 1. 실시간 오라 무드 램프 CSS */
+.home-mood-auras-section {
+  padding: 16px 20px 8px 20px;
+  background: transparent;
+}
+
+.mood-auras-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.mood-auras-status {
+  font-size: 12px;
+  color: var(--color-foreground-light);
+}
+
+.mood-auras-status strong {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.mood-auras-panel {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 12px 14px;
+}
+
+:root.dark-theme .mood-auras-panel {
+  background: rgba(20, 16, 25, 0.35);
+  border-color: rgba(255, 255, 255, 0.04);
+}
+
+.my-mood-picker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.picker-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-foreground-light);
+  white-space: nowrap;
+}
+
+.mood-chips-container {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding-bottom: 2px;
+}
+
+.mood-chips-container::-webkit-scrollbar {
+  display: none;
+}
+
+.mood-chip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 99px;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-foreground);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.mood-chip-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.mood-chip-btn.active {
+  background: var(--color-primary-light, rgba(140, 116, 186, 0.18));
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  font-weight: 600;
+  transform: scale(1.03);
+  box-shadow: 0 4px 12px rgba(140, 116, 186, 0.15);
+}
+
+/* 무드 램프 연동 Liquid Blobs 컬러 */
+.liquid-bg-blob.blob-1 {
+  background: radial-gradient(circle, var(--aura-color-1, rgba(140, 116, 186, 0.15)) 0%, transparent 70%) !important;
+}
+
+.liquid-bg-blob.blob-2 {
+  background: radial-gradient(circle, var(--aura-color-2, rgba(60, 208, 112, 0.12)) 0%, transparent 70%) !important;
+}
+
+
+/* 2. Cinematic Album Carousel CSS */
+.album-carousel-container {
+  position: relative;
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  touch-action: pan-y;
+  background: #000;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+}
+
+.album-carousel-track {
+  display: flex;
+  width: 100%;
+  height: 280px;
+  will-change: transform;
+}
+
+.album-carousel-slide {
+  flex: 0 0 100%;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.slide-media-wrap {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.carousel-media {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  will-change: transform;
+}
+
+.slide-title-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.65));
+  color: #fff;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.carousel-dots {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  z-index: 10;
+}
+
+.carousel-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.carousel-dot.active {
+  width: 14px;
+  border-radius: 99px;
+  background: #fff;
+}
+
+
+/* 3. Filter Chips Slider CSS */
+.feed-filter-chips-container {
+  padding: 8px 16px 14px 16px;
+  position: relative;
+}
+
+.feed-filter-chips-scroll {
+  display: flex;
+  gap: 6px;
+  position: relative;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 99px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+:root.dark-theme .feed-filter-chips-scroll {
+  background: rgba(0, 0, 0, 0.15);
+  border-color: rgba(255, 255, 255, 0.03);
+}
+
+.feed-filter-chips-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.filter-chip-btn {
+  flex: 1;
+  text-align: center;
+  background: transparent;
+  border: none;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-foreground-light);
+  cursor: pointer;
+  z-index: 2;
+  white-space: nowrap;
+  transition: color 0.3s ease;
+}
+
+.filter-chip-btn.active {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.active-filter-indicator {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 0;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 99px;
+  z-index: 1;
+  pointer-events: none;
+  transition: transform 0.35s cubic-bezier(0.25, 1.25, 0.5, 1.1), width 0.35s cubic-bezier(0.25, 1.25, 0.5, 1.1), opacity 0.3s ease;
+}
+
+:root.dark-theme .active-filter-indicator {
+  background: rgba(140, 116, 186, 0.15);
+  border-color: rgba(140, 116, 186, 0.2);
+}
+
+
+/* 4. Floating D-Day Bubble & Modal CSS */
+.floating-dday-bubble-wrapper {
+  position: fixed;
+  right: 20px;
+  bottom: 84px;
+  z-index: 999;
+}
+
+.floating-dday-bubble {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 8px 32px 0 rgba(140, 116, 186, 0.25);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  outline: none;
+  animation: bubble-float 4s ease-in-out infinite alternate;
+  transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.floating-dday-bubble:hover {
+  transform: scale(1.08) rotate(3deg);
+  box-shadow: 0 12px 36px 0 rgba(140, 116, 186, 0.35);
+}
+
+.floating-dday-bubble:active {
+  transform: scale(0.92);
+}
+
+.dday-bubble-emoji {
+  font-size: 13px;
+  line-height: 1;
+  margin-bottom: 2px;
+}
+
+.dday-bubble-text {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--color-foreground);
+  line-height: 1;
+}
+
+@keyframes bubble-float {
+  0% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-8px) rotate(-2deg); }
+  100% { transform: translateY(2px) rotate(3deg); }
+}
+
+/* 버블 터짐 파티클 */
+.bubble-pop-particle {
+  position: absolute;
+  pointer-events: none;
+  font-size: 14px;
+  z-index: 1000;
+  animation: bubble-particle-fly 0.8s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+}
+
+@keyframes bubble-particle-fly {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--px), var(--py)) scale(0.2);
+    opacity: 0;
+  }
+}
+
+/* D-Day Countdown Dialog */
+.modal.dday-countdown-dialog {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 28px 24px !important;
+  max-width: 320px !important;
+  border-radius: 24px !important;
+  animation: modal-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes modal-pop {
+  0% { transform: scale(0.85); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.countdown-emoji {
+  font-size: 44px;
+  margin-bottom: 12px;
+}
+
+.countdown-target-date {
+  font-size: 12px;
+  color: var(--color-foreground-light);
+  margin-top: 4px;
+  margin-bottom: 24px;
+}
+
+.countdown-timer-container {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.timer-segment {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 8px 12px;
+  min-width: 52px;
+}
+
+:root.dark-theme .timer-segment {
+  background: rgba(0, 0, 0, 0.15);
+  border-color: rgba(255, 255, 255, 0.03);
+}
+
+.timer-number {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--color-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.timer-label {
+  font-size: 10px;
+  color: var(--color-foreground-light);
+  margin-top: 2px;
+}
+
+.countdown-close-btn {
+  width: 100% !important;
+  border-radius: 99px !important;
+}

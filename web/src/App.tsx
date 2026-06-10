@@ -905,6 +905,17 @@ export function App() {
         selectedCommunity={activeView === "community" && isCommunityListOpen ? null : selectedCommunity}
         unreadMessageCount={state.notifications.filter((item) => item.kind === "message" && !item.read).length}
         unreadNotificationCount={state.notifications.filter((item) => !item.read).length}
+        onSignOut={() => {
+          setActionError(null);
+          void actions
+            .signOut()
+            .then(() => {
+              startViewTransition(() => {
+                resetNavigationToHome();
+              });
+            })
+            .catch((error) => setActionError(errorMessage(error)));
+        }}
         onViewChange={(view) => startViewTransition(() => {
           pushRouteIntent({ view });
           setActiveView(view);

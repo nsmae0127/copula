@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type FocusEvent, type FormEvent, type ReactNode } from "react";
 import {
-  Apple,
   FileText,
   HelpCircle,
   LogIn,
@@ -17,7 +16,7 @@ import { useDialogFocusTrap } from "../hooks/useDialogFocusTrap";
 import { readAutoLoginPreference, setAutoLoginPreference } from "../lib/authPersistence";
 
 type AuthPanel = "signIn" | "signUp" | "reset" | "terms" | "privacy" | "support" | null;
-type RecentLoginMethod = OAuthProvider | "email";
+type RecentLoginMethod = Exclude<OAuthProvider, "apple"> | "email";
 
 const recentLoginStorageKey = "copula.recent-login-method";
 
@@ -59,7 +58,7 @@ export function AuthScreen({
   const [activeOAuthProvider, setActiveOAuthProvider] = useState<OAuthProvider | null>(null);
   const [availableOAuthProviders, setAvailableOAuthProviders] = useState<OAuthProvider[] | null>(null);
   const [recentLoginMethod, setRecentLoginMethod] = useState<RecentLoginMethod | null>(readRecentLoginMethod);
-  const [autoLogin, setAutoLogin] = useState(readAutoLoginPreference);
+  const [autoLogin, setAutoLogin] = useState(false);
   const isBusy = isLoading || isSubmitting;
   const isNotice = Boolean(error?.includes("확인 이메일"));
 
@@ -84,7 +83,7 @@ export function AuthScreen({
     return availableOAuthProviders?.includes(provider) === true;
   }
 
-  async function startOAuth(provider: OAuthProvider) {
+  async function startOAuth(provider: Exclude<OAuthProvider, "apple">) {
     const previousMethod = recentLoginMethod;
     setNotice(null);
     setActiveOAuthProvider(provider);
@@ -199,6 +198,12 @@ export function AuthScreen({
       <section className="auth-minimal" aria-label="Copula">
         {isLoading ? <span className="loading-spinner" aria-label="불러오는 중" /> : null}
 
+        <header className="auth-welcome">
+          <span>PRIVATE RELATIONSHIP HUB</span>
+          <h1>우리만의 특별한 아지트</h1>
+          <p>가장 소중한 사람들과의 일상을 한곳에서 모아보세요.</p>
+        </header>
+
         <div className="auth-card">
           {isSupabase ? (
             <>
@@ -222,7 +227,7 @@ export function AuthScreen({
                 >
                   {recentLoginMethod === "email" ? <span className="auth-recent-login">최근 로그인</span> : null}
                   <LogIn aria-hidden="true" />
-                  <span>이메일 로그인</span>
+                  <span>이메일로 로그인</span>
                 </button>
                 <button
                   type="button"
@@ -235,31 +240,20 @@ export function AuthScreen({
                 </button>
               </div>
 
-              <button
-                type="button"
-                className="auth-sub-link"
-                onClick={() => openPanel("reset")}
-                disabled={isBusy}
-              >
-                비밀번호를 잊으셨나요?
-              </button>
+              <div className="auth-account-options" style={{ justifyContent: "flex-end" }}>
+                <button
+                  type="button"
+                  className="auth-sub-link"
+                  onClick={() => openPanel("reset")}
+                  disabled={isBusy}
+                >
+                  비밀번호 찾기
+                </button>
+              </div>
 
-              <label className="auth-auto-login">
-                <input
-                  type="checkbox"
-                  checked={autoLogin}
-                  onChange={(event) => {
-                    const enabled = event.currentTarget.checked;
-                    setAutoLogin(enabled);
-                    setAutoLoginPreference(enabled);
-                  }}
-                />
-                <span>자동 로그인</span>
-              </label>
-
-              <div className="auth-divider" aria-hidden="true">
+              <div className="auth-divider">
                 <span />
-                <b>또는</b>
+                <b>간편 로그인</b>
                 <span />
               </div>
 
@@ -312,21 +306,6 @@ export function AuthScreen({
                     <span className="auth-provider-status" aria-hidden="true" />
                   ) : null}
                 </button>
-                <button
-                  type="button"
-                  className="auth-social-button is-apple"
-                  onClick={() => void startOAuth("apple")}
-                  disabled={isBusy || !isOAuthAvailable("apple")}
-                  aria-busy={activeOAuthProvider === "apple"}
-                  aria-label={isOAuthAvailable("apple") ? "Apple 로그인" : "Apple 로그인 준비 중"}
-                  title={isOAuthAvailable("apple") ? "Apple 로그인" : "Apple 로그인 준비 중"}
-                >
-                  {recentLoginMethod === "apple" ? <span className="auth-recent-login">최근 로그인</span> : null}
-                  <Apple aria-hidden="true" />
-                  {availableOAuthProviders && !isOAuthAvailable("apple") ? (
-                    <span className="auth-provider-status" aria-hidden="true" />
-                  ) : null}
-                </button>
               </div>
             </>
           ) : (
@@ -359,27 +338,42 @@ export function AuthScreen({
               onChange={() => setNotice(null)}
             >
               {panel === "signUp" ? (
-                <input name="displayName" autoComplete="name" placeholder="이름" />
+                <label className="auth-field">
+                  <span>이름</span>
+                  <input name="displayName" autoComplete="name" placeholder="Copula에서 사용할 이름" required />
+                </label>
               ) : null}
-              <input
-                name="email"
-                type="email"
-                autoComplete="email"
-                placeholder="이메일"
-                value={email}
-                onChange={(event) => setEmail(event.currentTarget.value)}
-                required
-                autoFocus
-                data-autofocus="true"
-              />
-              <input
-                name="password"
-                type="password"
-                autoComplete={panel === "signUp" ? "new-password" : "current-password"}
-                placeholder="비밀번호"
-                minLength={6}
-                required
-              />
+              <label className="auth-field">
+                <span>이메일</span>
+                <input
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="name@example.com"
+                  value={email}
+                  onChange={(event) => setEmail(event.currentTarget.value)}
+                  required
+                  autoFocus
+                  data-autofocus="true"
+                />
+              </label>
+              <label className="auth-field">
+                <span>비밀번호</span>
+                <input
+                  name="password"
+                  type="password"
+                  autoComplete={panel === "signUp" ? "new-password" : "current-password"}
+                  placeholder="6자 이상 입력해 주세요"
+                  minLength={6}
+                  required
+                />
+              </label>
+              {panel === "signUp" ? (
+                <label className="auth-signup-consent">
+                  <input type="checkbox" name="termsAccepted" required />
+                  <span>이용약관과 개인정보 처리방침에 동의합니다.</span>
+                </label>
+              ) : null}
               <InlineStatus error={error} isNotice={isNotice} notice={notice} pendingInviteCode={pendingInviteCode} />
               <button className="primary-button auth-submit-button" type="submit" disabled={isBusy}>
                 {panel === "signUp" ? (
@@ -404,17 +398,20 @@ export function AuthScreen({
               onSubmit={requestPasswordReset}
               onChange={() => setNotice(null)}
             >
-              <input
-                name="email"
-                type="email"
-                autoComplete="email"
-                placeholder="이메일"
-                defaultValue={email}
-                onChange={(event) => setEmail(event.currentTarget.value)}
-                required
-                autoFocus
-                data-autofocus="true"
-              />
+              <label className="auth-field">
+                <span>가입한 이메일</span>
+                <input
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="name@example.com"
+                  defaultValue={email}
+                  onChange={(event) => setEmail(event.currentTarget.value)}
+                  required
+                  autoFocus
+                  data-autofocus="true"
+                />
+              </label>
               <InlineStatus error={null} isNotice={false} notice={notice} pendingInviteCode={null} />
               <button className="primary-button auth-submit-button" type="submit" disabled={isBusy}>
                 <RotateCcw aria-hidden="true" />
@@ -537,7 +534,7 @@ function isAuthFormPanel(panel: AuthPanel) {
 function readRecentLoginMethod(): RecentLoginMethod | null {
   try {
     const stored = window.localStorage.getItem(recentLoginStorageKey);
-    return stored === "email" || stored === "google" || stored === "kakao" || stored === "naver" || stored === "apple"
+    return stored === "email" || stored === "google" || stored === "kakao" || stored === "naver"
       ? stored
       : null;
   } catch {
@@ -545,8 +542,8 @@ function readRecentLoginMethod(): RecentLoginMethod | null {
   }
 }
 
-function isOAuthLoginMethod(method: RecentLoginMethod | null): method is OAuthProvider {
-  return method === "google" || method === "kakao" || method === "naver" || method === "apple";
+function isOAuthLoginMethod(method: RecentLoginMethod | null): method is Exclude<OAuthProvider, "apple"> {
+  return method === "google" || method === "kakao" || method === "naver";
 }
 
 type AuthViewportStyle = CSSProperties & {

@@ -53,12 +53,8 @@ export function TodayScreen({
     <div className="today-screen">
       <header className="today-screen-head">
         <div>
-          <span>{formatDate(today)}</span>
           <h1>Today</h1>
         </div>
-        <span className="today-summary" aria-label={`오늘 확인할 항목 ${totalActions}개`}>
-          {totalActions}
-        </span>
       </header>
 
       {!state.communities.length ? (
@@ -185,13 +181,7 @@ function isSameDay(a: Date, b: Date) {
     && a.getDate() === b.getDate();
 }
 
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("ko-KR", {
-    month: "long",
-    day: "numeric",
-    weekday: "short"
-  }).format(date);
-}
+
 
 function formatTime(value: string) {
   return new Intl.DateTimeFormat("ko-KR", {

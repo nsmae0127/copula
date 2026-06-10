@@ -49,6 +49,7 @@ export interface UserProfile {
   name: string;
   handle: string;
   initials: string;
+  avatarUrl?: string;
 }
 
 export interface CommunityMember {

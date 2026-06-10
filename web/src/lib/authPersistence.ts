@@ -1,11 +1,8 @@
 const autoLoginStorageKey = "copula.auto-login";
 
 export function readAutoLoginPreference() {
-  try {
-    return window.localStorage.getItem(autoLoginStorageKey) !== "false";
-  } catch {
-    return true;
-  }
+  // Temporarily disabled auto-login
+  return false;
 }
 
 export function setAutoLoginPreference(enabled: boolean) {

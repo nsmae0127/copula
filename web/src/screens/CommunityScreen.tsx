@@ -476,7 +476,6 @@ function CommunityDirectory({
     >
       <header className="copula-directory-head">
         <h1>My Copula</h1>
-        <span>{communities.length}</span>
       </header>
       <div className="copula-directory-list">
         {communities.map((community) => {
@@ -486,6 +485,7 @@ function CommunityDirectory({
             (item) => item.communityId === community.id && !item.read
           ).length;
           const pinnedNotice = sortNotices(community.notices).find((notice) => notice.pinned);
+          const latestNotice = sortNotices(community.notices)[0];
           const ActivityIcon = activity.icon;
           return (
             <button
@@ -499,30 +499,30 @@ function CommunityDirectory({
                 <img src={bannerUrl} alt="" loading="lazy" decoding="async" />
                 <span className="copula-directory-shade" />
               </span>
-              <span className="copula-directory-card-top">
-                <span className="copula-directory-initials">{communityInitials(community.name)}</span>
-                <span className="copula-directory-member-count">
-                  <Users aria-hidden="true" />
-                  {community.members.length}
+              {unreadCount > 0 && (
+                <span className="copula-directory-new-badge" aria-label="새로운 소식 있음">
+                  NEW
                 </span>
-                <time dateTime={activity.at}>{formatCommunityRelativeTime(activity.at)}</time>
-              </span>
-              {(pinnedNotice || unreadCount > 0) ? (
-                <span className="copula-directory-status" aria-label={`${pinnedNotice ? "고정 공지 있음" : ""}${unreadCount ? ` 읽지 않은 활동 ${unreadCount}개` : ""}`}>
-                  {pinnedNotice ? <Megaphone aria-hidden="true" /> : null}
-                  {unreadCount > 0 ? <b>{unreadCount > 9 ? "9+" : unreadCount}</b> : null}
-                </span>
-              ) : null}
+              )}
               <span className="copula-directory-main">
                 <strong>{community.name}</strong>
-                <span className="copula-directory-activity">
-                  <ActivityIcon aria-hidden="true" />
-                  <span>{activity.text}</span>
+                <span className="copula-directory-meta-sub">
+                  <span className="member-count-sub">
+                    <Users size={10} aria-hidden="true" />
+                    {community.members.length}명
+                  </span>
                 </span>
               </span>
-              <span className="copula-directory-open-icon">
-                <ChevronRight aria-hidden="true" />
-              </span>
+              {latestNotice && (
+                <span className="copula-directory-card-notice">
+                  <Megaphone size={10} aria-hidden="true" />
+                  <span className="card-notice-window">
+                    <span className="card-notice-track">
+                      {latestNotice.title}
+                    </span>
+                  </span>
+                </span>
+              )}
             </button>
           );
         })}
@@ -1235,6 +1235,17 @@ interface CopulaContentItem {
   mediaKind?: "photo" | "video";
 }
 
+function getFilterIcon(filterId: CopulaContentFilter) {
+  switch (filterId) {
+    case "all": return <CircleDot size={15} />;
+    case "notice": return <Megaphone size={15} />;
+    case "schedule": return <CalendarDays size={15} />;
+    case "commitment": return <ListTodo size={15} />;
+    case "album": return <Image size={15} />;
+    case "vlog": return <Video size={15} />;
+  }
+}
+
 function FeedModule({
   community,
   onModuleChange
@@ -1283,8 +1294,9 @@ function FeedModule({
             onClick={() => setActiveFilter(filter.id)}
             role="tab"
             aria-selected={activeFilter === filter.id}
+            title={filter.label}
           >
-            {filter.label}
+            {getFilterIcon(filter.id)}
             <span>{filter.count}</span>
           </button>
         ))}
@@ -1301,12 +1313,13 @@ function FeedModule({
               <span className="copula-content-icon">
                 <item.icon aria-hidden="true" />
               </span>
-              <span className="copula-content-main">
-                <span className="copula-content-eyebrow">{item.eyebrow}</span>
-                <strong>{item.title}</strong>
-                <span>{item.meta}</span>
-                {item.body ? <small>{item.body}</small> : null}
-              </span>
+              {item.filter !== "album" && item.filter !== "vlog" && (
+                <span className="copula-content-main">
+                  <strong>{item.title}</strong>
+                  <span>{item.meta}</span>
+                  {item.body ? <small>{item.body}</small> : null}
+                </span>
+              )}
               {item.mediaUrl ? (
                 <span className="copula-content-media">
                   {item.mediaKind === "video" ? (

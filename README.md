@@ -1,60 +1,55 @@
-# Copula
+# Copula (코풀라) 👥✨
 
-Copula is a mobile-first relationship hub for small private groups.
+소중한 사람들, 가족, 연인, 소규모 동아리 등 **프라이빗한 소그룹을 위한 모바일 최적화 관계형 허브**입니다. 
 
-It brings together the things a close group usually scatters across chats, calendars, albums, and reminders: announcements, schedules, photos, short daily videos, shared commitments, and group-only messages.
+카카오톡, 캘린더, 클라우드 앨범, 메모장 등에 흩어져 있던 우리 그룹만의 일정, 추억(사진/동영상), 공지사항, 메시지를 하나의 따뜻하고 아름다운 공간으로 모아 관리합니다.
 
-## What Copula Does
+---
 
-- Create or join private copulas with invite codes.
-- Switch between multiple copulas from the main Copula screen.
-- Share announcements, schedules, D-Day items, albums, and 1s Vlog clips.
-- Browse a simple activity feed that mixes recent notices, messages, schedules, albums, and tasks.
-- Chat with members inside a copula and react to messages.
-- Track relationship-scoped commitments for individuals, pairs, and circles.
-- Use a mobile-friendly bottom action menu for quick posting.
+## 🌟 주요 기능 (Key Features)
 
-## Product Direction
+*   **프라이빗 그룹 생성 및 참여**: 이메일 및 초대 코드를 통해 우리 멤버들만 아는 안전하고 비밀스러운 그룹(Copula)을 손쉽게 구성합니다.
+*   **통합 홈 피드**: 최근 등록된 공지사항, 채팅 메시지, 새로운 일정, 업로드된 사진 등을 한눈에 모아볼 수 있는 타임라인 피드를 제공합니다.
+*   **실시간 채팅 및 반응**: 그룹원들과 대화를 나누고 메시지에 이모지 반응을 남겨 교류합니다.
+*   **1초 일상 Vlog (1s Vlog)**: 매일 짧은 1초 분량의 일상 비디오 클립을 올려 그룹 내 소소한 하루를 공유하고 연결감을 느낍니다.
+*   **공용 일정 & D-Day**: 다가오는 그룹의 스케줄과 기념일을 관리합니다.
+*   **롤링 공지사항 바**: 그룹 목록 배너 하단에 흐르는 듯한 투명 롤링 텍스트로 등록된 공지를 시인성 높게 노출합니다.
+*   **개선된 사용자 계정 편의성**:
+    *   **iOS 스타일 다크 모드 스위치**: 원클릭으로 화면 테마를 라이트/다크 모드로 부드럽게 토글할 수 있습니다.
+    *   **간편 로그아웃**: 설정 깊숙이 들어가지 않고 프로필 메뉴에서 즉시 안전하게 로그아웃이 가능합니다.
 
-Copula is designed for family, friends, travel groups, clubs, and small communities that need a warmer shared space than a generic productivity tool.
+---
 
-The interface aims to feel:
+## 🎨 디자인 특징 (Design & Aesthetics)
 
-- cute and personal
-- easy to scan on mobile
-- private by default
-- focused on shared memories and lightweight coordination
+*   **리퀴드 글래스 (Liquid Glass) 스타일**: 카드 하단 공지 영역에 100%에 가까운 투명도를 적용하여 아름다운 배경 이미지가 흐려지지 않으면서도 글씨 가독성이 유지되는 고효율 글래스모피즘(Glassmorphism) 테마를 구현했습니다.
+*   **모바일 퍼스트 레이아웃**: 스마트폰 화면 크기에 완벽하게 최적화된 반응형 UI와 하단 네비게이션/액션 바를 적용했습니다.
 
-## Tech Stack
+---
 
-- React
-- TypeScript
-- Vite
-- Supabase integration layer
-- PWA manifest and service worker
+## 🛠 기술 스택 (Tech Stack)
 
-## Local Development
+*   **Frontend**: React, TypeScript, Vite, Vanilla CSS
+*   **Backend & DB**: Supabase (인증, 데이터베이스 및 실시간 동기화)
+*   **Deployment**: Vercel (프로덕션 웹 빌드 및 호스팅)
+*   **Assets**: Lucide React 아이콘 패키지
+
+---
+
+## 🚀 로컬 실행 방법 (Local Development)
+
+웹앱 소스는 `web` 디렉토리 아래에 위치해 있습니다.
 
 ```sh
+# 1. web 폴더로 이동
 cd web
+
+# 2. 의존성 패키지 설치
 npm install
+
+# 3. 로컬 개발 서버 구동
 npm run dev
 ```
 
-Open `http://localhost:4173`.
-
-The app can run with local demo data for development. Runtime environment files are intentionally not included in this repository.
-
-## Source Structure
-
-- `web/src`: application source
-- `web/src/screens`: main app screens
-- `web/src/components`: shared UI and layout components
-- `web/src/repositories`: local and Supabase data boundaries
-- `web/public`: public PWA assets
-- `supabase/migrations`: database migration files
-- `supabase/functions`: Supabase Edge Function source
-
-## Privacy Note
-
-This repository does not include local environment files, private keys, production tokens, user data, or deployment credentials.
+*   실행 후 웹 브라우저에서 `http://localhost:5173` (혹은 터미널에 표시되는 로컬 포트)로 접속합니다.
+*   기본적으로 클라우드 연동 없이 브라우저 내의 **로컬 데모 데이터**를 사용하여 바로 로그인 및 모든 기능을 체험해볼 수 있습니다.

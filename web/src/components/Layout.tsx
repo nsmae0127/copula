@@ -8,6 +8,7 @@ import {
   Home,
   Image,
   KeyRound,
+  LogOut,
   Megaphone,
   MessageCircle,
   MessageCirclePlus,
@@ -44,6 +45,7 @@ interface LayoutProps {
   onOpenQuickAlbum: () => void;
   onOpenQuickMessage: () => void;
   onOpenQuickVlog: () => void;
+  onSignOut?: () => void;
 }
 
 export function Layout({
@@ -64,10 +66,12 @@ export function Layout({
   onOpenQuickEvent,
   onOpenQuickAlbum,
   onOpenQuickMessage,
-  onOpenQuickVlog
+  onOpenQuickVlog,
+  onSignOut
 }: LayoutProps) {
   const [isPlusMenuOpen, setIsPlusMenuOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const [hideBars, setHideBars] = useState(false);
   const backSwipeStartRef = useRef<{ x: number; y: number; tracking: boolean } | null>(null);
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     if (typeof window !== "undefined") {
@@ -107,12 +111,65 @@ export function Layout({
     return () => window.removeEventListener("keydown", handleEscape);
   }, [isPlusMenuOpen, isAccountMenuOpen]);
 
+  useEffect(() => {
+    if (activeView !== "home") {
+      setHideBars(false);
+      return;
+    }
+
+    let container: Element | null = null;
+    let lastScrollY = 0;
+    let ticking = false;
+
+    const handleScroll = (e: Event) => {
+      const target = e.currentTarget as HTMLElement;
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const currentScrollY = target.scrollTop;
+          
+          if (currentScrollY <= 20) {
+            setHideBars(false);
+          } else {
+            const delta = currentScrollY - lastScrollY;
+            if (Math.abs(delta) > 10) {
+              if (delta > 0) {
+                setHideBars(true);
+              } else {
+                setHideBars(false);
+              }
+            }
+          }
+          lastScrollY = currentScrollY;
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    const setupListener = () => {
+      container = document.querySelector(".home-feed-container");
+      if (container) {
+        lastScrollY = container.scrollTop;
+        container.addEventListener("scroll", handleScroll, { passive: true });
+      }
+    };
+
+    const timer = setTimeout(setupListener, 150);
+
+    return () => {
+      clearTimeout(timer);
+      if (container) {
+        container.removeEventListener("scroll", handleScroll);
+      }
+    };
+  }, [activeView]);
+
   const toggleTheme = () => {
     setTheme((prev) => (prev === "light" ? "dark" : "light"));
   };
   const plusButton = getPlusButtonConfig(activeView, Boolean(selectedCommunity));
   const PlusButtonIcon = plusButton.icon;
-  const showTopbar = activeView !== "notifications" && activeView !== "messages" && activeView !== "community";
+  const showTopbar = activeView !== "notifications" && activeView !== "messages" && activeView !== "community" && activeView !== "today";
 
   function handleBackSwipeStart(event: PointerEvent<HTMLDivElement>) {
     if (event.pointerType === "mouse") return;
@@ -152,7 +209,7 @@ export function Layout({
 
   return (
     <div
-      className={`app-shell ${showTopbar ? "" : "is-headerless"}`}
+      className={`app-shell ${showTopbar ? "" : "is-headerless"} ${hideBars ? "hide-nav-bars" : ""}`}
       onPointerDown={handleBackSwipeStart}
       onPointerMove={handleBackSwipeMove}
       onPointerUp={clearBackSwipeTracking}
@@ -173,7 +230,11 @@ export function Layout({
             aria-controls="topbar-account-menu"
             title="계정 정보"
           >
-            <span>{currentUser.initials}</span>
+            {currentUser.avatarUrl ? (
+              <img src={currentUser.avatarUrl} alt="" />
+            ) : (
+              <span>{currentUser.initials}</span>
+            )}
           </button>
 
           {isAccountMenuOpen ? (
@@ -187,7 +248,11 @@ export function Layout({
               />
               <div className="account-menu-popover" id="topbar-account-menu">
                 <div className="account-menu-profile">
-                  <span className="account-menu-avatar">{currentUser.initials}</span>
+                  {currentUser.avatarUrl ? (
+                    <img src={currentUser.avatarUrl} alt="" />
+                  ) : (
+                    <span className="account-menu-avatar">{currentUser.initials}</span>
+                  )}
                   <span>
                     <strong>{currentUser.name}</strong>
                     <small>{currentUser.handle}</small>
@@ -205,16 +270,38 @@ export function Layout({
                     <UserRound aria-hidden="true" />
                     <span>계정 설정</span>
                   </button>
+                  
                   <button
                     type="button"
+                    className="account-menu-toggle-row"
                     onClick={() => {
                       playTapSound();
                       toggleTheme();
                     }}
                   >
-                    {theme === "dark" ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}
-                    <span>{theme === "dark" ? "라이트 모드" : "다크 모드"}</span>
+                    <span className="account-menu-toggle-label">
+                      <Moon aria-hidden="true" />
+                      <span>다크 모드</span>
+                    </span>
+                    <span className={`theme-switch-track ${theme === "dark" ? "is-active" : ""}`}>
+                      <span className="theme-switch-thumb" />
+                    </span>
                   </button>
+
+                  {onSignOut && (
+                    <button
+                      type="button"
+                      className="account-menu-btn-danger"
+                      onClick={() => {
+                        playTapSound();
+                        setIsAccountMenuOpen(false);
+                        onSignOut();
+                      }}
+                    >
+                      <LogOut aria-hidden="true" />
+                      <span>로그아웃</span>
+                    </button>
+                  )}
                 </div>
               </div>
             </>

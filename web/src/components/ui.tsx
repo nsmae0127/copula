@@ -323,6 +323,13 @@ export function NoticeRow({ community, title, body, pinned, action }: {
   );
 }
 
+function toDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export function MemberRow({
   member,
   community,
@@ -332,11 +339,26 @@ export function MemberRow({
   community: Community;
   action?: ReactNode;
 }) {
+  const todayKey = toDateKey(new Date());
+  const hasVlog = (community.oneSecondLogs || []).some(
+    (log) => log.userId === member.userId && toDateKey(new Date(log.createdAt)) === todayKey
+  );
+
+  const avatarContent = (
+    <span className="avatar" style={{ "--accent": community.accent } as CSSProperties}>
+      {member.initials}
+    </span>
+  );
+
   return (
     <article className="card row" style={{ "--accent": community.accent } as CSSProperties}>
-      <span className="avatar" style={{ "--accent": community.accent } as CSSProperties}>
-        {member.initials}
-      </span>
+      {hasVlog ? (
+        <div className="vlog-ring-avatar-wrap" title="오늘 1s 등록 완료">
+          {avatarContent}
+        </div>
+      ) : (
+        avatarContent
+      )}
       <div className="row-main">
         <strong>{member.name}</strong>
         <span>
@@ -347,6 +369,8 @@ export function MemberRow({
     </article>
   );
 }
+
+
 
 export function NotificationRow({ item, onClick }: { item: CopulaNotification; onClick?: () => void }) {
   const Icon = notificationIcon(item.kind);

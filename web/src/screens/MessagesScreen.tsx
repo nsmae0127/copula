@@ -125,6 +125,7 @@ function ConversationPanel({
   const listRef = useRef<HTMLDivElement>(null);
   const swipeStartRef = useRef<{ x: number; y: number; tracking: boolean } | null>(null);
   const messages = [...community.messages].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  const todayKey = toDateKey(new Date());
 
   useEffect(() => {
     if (listRef.current) {
@@ -219,7 +220,21 @@ function ConversationPanel({
 
             return (
               <article key={message.id} className={`message-row ${mine ? "is-mine" : "is-other"}`}>
-                {!mine ? <span className="message-avatar">{message.senderInitials}</span> : null}
+                {!mine ? (
+                  (() => {
+                    const hasVlog = (community.oneSecondLogs || []).some(
+                      (log) => log.userId === message.senderUserId && toDateKey(new Date(log.createdAt)) === todayKey
+                    );
+                    const avatarEl = <span className="message-avatar">{message.senderInitials}</span>;
+                    return hasVlog ? (
+                      <div className="vlog-ring-avatar-wrap" style={{ width: "32px", height: "32px", padding: "1.8px" }} title="오늘 1s 등록 완료">
+                        {avatarEl}
+                      </div>
+                    ) : (
+                      avatarEl
+                    );
+                  })()
+                ) : null}
                 <div className="message-cluster">
                   {!mine ? <span className="message-sender">{message.senderName}</span> : null}
                   <button
@@ -334,4 +349,11 @@ function formatRelativeMessageTime(value: string) {
   const diffHours = Math.floor(diffMinutes / 60);
   if (diffHours < 24) return `${diffHours}시간 전`;
   return date.toLocaleDateString("ko-KR", { month: "short", day: "numeric" });
+}
+
+function toDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }

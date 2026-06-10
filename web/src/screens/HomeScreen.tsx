@@ -390,6 +390,7 @@ function renderFeedCard(
         </span>
       </header>
 
+
       <div className="feed-card-body" onClick={handleCardClick}>
         {type === "commitment" && (
           <div className="feed-content-commitment">

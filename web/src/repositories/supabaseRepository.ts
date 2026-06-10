@@ -1767,7 +1767,8 @@ function mapProfile(profile: ProfileRow): UserProfile {
     id: profile.id,
     name: profile.display_name,
     handle: profile.handle,
-    initials: initials(profile.display_name)
+    initials: initials(profile.display_name),
+    avatarUrl: profile.avatar_url || undefined
   };
 }
 

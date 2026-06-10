@@ -82,6 +82,33 @@ interface CopulaHistoryState {
 
 export function App() {
   const { state, selectedCommunity, status, actions } = useCopulaStore();
+  const [splashStage, setSplashStage] = useState<"visible" | "animating-out" | "hidden">("visible");
+
+  useEffect(() => {
+    const minSplashTime = 1200; // minimum duration (1.2s)
+    const startTime = Date.now();
+    
+    const checkHydration = setInterval(() => {
+      if (status.isHydrated) {
+        const elapsed = Date.now() - startTime;
+        const remaining = Math.max(0, minSplashTime - elapsed);
+        
+        setTimeout(() => {
+          setSplashStage("animating-out");
+          clearInterval(checkHydration);
+          
+          setTimeout(() => {
+            setSplashStage("hidden");
+          }, 400); // 400ms for CSS fade-out duration
+        }, remaining);
+      }
+    }, 50);
+    
+    return () => {
+      clearInterval(checkHydration);
+    };
+  }, [status.isHydrated]);
+
   const [activeView, setActiveView] = useState<ViewName>(
     () => readInitialRouteIntent()?.view ?? (localStorage.getItem(VIEW_KEY) as ViewName | null) ?? "home"
   );
@@ -346,25 +373,39 @@ export function App() {
 
   if (!state.currentUser) {
     return (
-      <Suspense fallback={<FullScreenFallback />}>
-        <AuthScreen
-          backend={status.backend}
-          error={actionError ?? status.loadError}
-          pendingInviteCode={pendingInviteCode}
-          isLoading={!status.isHydrated}
-          onPasswordReset={actions.resetPassword}
-          onLoadOAuthProviders={actions.getAvailableOAuthProviders}
-          onOAuthSignIn={async (provider) => {
-            setActionError(null);
-            await actions.signInWithOAuth(provider);
-          }}
-          onSignIn={async (credentials) => {
-            setActionError(null);
-            await actions.signIn(credentials);
-            resetNavigationToHome();
-          }}
-        />
-      </Suspense>
+      <>
+        <Suspense fallback={<FullScreenFallback />}>
+          <AuthScreen
+            backend={status.backend}
+            error={actionError ?? status.loadError}
+            pendingInviteCode={pendingInviteCode}
+            isLoading={!status.isHydrated}
+            onPasswordReset={actions.resetPassword}
+            onLoadOAuthProviders={actions.getAvailableOAuthProviders}
+            onOAuthSignIn={async (provider) => {
+              setActionError(null);
+              await actions.signInWithOAuth(provider);
+            }}
+            onSignIn={async (credentials) => {
+              setActionError(null);
+              await actions.signIn(credentials);
+              resetNavigationToHome();
+            }}
+          />
+        </Suspense>
+        {splashStage !== "hidden" && (
+          <div className={`splash-screen ${splashStage === "animating-out" ? "is-fading-out" : ""}`}>
+            <div className="splash-content">
+              <img src="/assets/logo-mark-256.png" className="splash-logo" alt="Copula Logo" />
+              <h1 className="splash-title">Copula</h1>
+              <p className="splash-subtitle">소규모 프라이빗 관계형 허브</p>
+            </div>
+            <div className="splash-footer">
+              <span className="splash-brand-footer">Copula</span>
+            </div>
+          </div>
+        )}
+      </>
     );
   }
 
@@ -1106,6 +1147,19 @@ export function App() {
           />
         </Suspense>
       ) : null}
+
+      {splashStage !== "hidden" && (
+        <div className={`splash-screen ${splashStage === "animating-out" ? "is-fading-out" : ""}`}>
+          <div className="splash-content">
+            <img src="/assets/logo-mark-256.png" className="splash-logo" alt="Copula Logo" />
+            <h1 className="splash-title">Copula</h1>
+            <p className="splash-subtitle">소규모 프라이빗 관계형 허브</p>
+          </div>
+          <div className="splash-footer">
+            <span className="splash-brand-footer">Copula</span>
+          </div>
+        </div>
+      )}
     </>
   );
 }

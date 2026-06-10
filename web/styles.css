@@ -11002,3 +11002,242 @@ body.dark-theme .settings-row-btn:hover {
   border-bottom-width: 36px;
   box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2);
 }
+
+/* Liquid BG Blobs & Glassmorphism Aesthetics */
+.home-screen-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.liquid-bg-blob {
+  position: absolute;
+  width: 250px;
+  height: 250px;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.18;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.liquid-bg-blob.blob-1 {
+  background: var(--brand-coral, #f0717a);
+  top: 10%;
+  left: -50px;
+  animation: float-blob-1 22s infinite alternate ease-in-out;
+}
+
+.liquid-bg-blob.blob-2 {
+  background: var(--teal, #6fb7a5);
+  bottom: 20%;
+  right: -80px;
+  animation: float-blob-2 26s infinite alternate ease-in-out;
+}
+
+.liquid-bg-blob.blob-3 {
+  background: var(--brand-purple, #8c74ba);
+  top: 45%;
+  left: 30%;
+  animation: float-blob-3 20s infinite alternate ease-in-out;
+}
+
+@keyframes float-blob-1 {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(50px, 60px) scale(1.2); }
+}
+
+@keyframes float-blob-2 {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(-70px, -40px) scale(1.15); }
+}
+
+@keyframes float-blob-3 {
+  0% { transform: translate(0, 0) scale(0.9); }
+  100% { transform: translate(30px, -60px) scale(1.1); }
+}
+
+/* Glassmorphism card styles */
+.home-dday-widget-card,
+.vlog-intro-card,
+.copula-content-item,
+.card.row,
+.onboarding-panel.card {
+  background: rgba(255, 255, 255, 0.05) !important;
+  backdrop-filter: blur(14px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 8px 32px 0 rgba(44, 36, 50, 0.08) !important;
+  position: relative;
+  z-index: 1;
+}
+
+:root.dark-theme .home-dday-widget-card,
+:root.dark-theme .vlog-intro-card,
+:root.dark-theme .copula-content-item,
+:root.dark-theme .card.row,
+:root.dark-theme .onboarding-panel.card {
+  background: rgba(20, 16, 25, 0.35) !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Glassmorphism boarder glow micro-gradient effect */
+.home-dday-widget-card::before,
+.copula-content-item::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), transparent 40%, rgba(255, 255, 255, 0.03));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Mobile Bottom Sheet Drawer Layout */
+@media (max-width: 768px) {
+  .modal-backdrop {
+    align-items: flex-end; /* 아래에 정렬 */
+    padding: 0;
+  }
+
+  .modal.bottom-sheet-dialog {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 20px 20px 0 0 !important; /* 위쪽 둥글게 */
+    margin: 0 !important;
+    padding: 12px 20px 36px 20px !important;
+    animation: slide-up var(--motion-slow) cubic-bezier(0.25, 1, 0.5, 1) both;
+    box-shadow: 0 -8px 32px rgba(44, 36, 50, 0.15) !important;
+  }
+
+  .bottom-sheet-drag-handle-wrapper {
+    width: 100%;
+    padding: 6px 0 16px 0;
+    display: flex;
+    justify-content: center;
+    cursor: grab;
+    touch-action: none; /* 브라우저 스크롤 스킵 */
+  }
+
+  .bottom-sheet-drag-handle {
+    width: 36px;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 99px;
+  }
+
+  :root.dark-theme .bottom-sheet-drag-handle {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .modal-head {
+    margin-top: 0 !important;
+  }
+}
+
+/* Fallback/Default handle element styling for desktop (hidden) */
+.bottom-sheet-drag-handle-wrapper {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .bottom-sheet-drag-handle-wrapper {
+    display: flex;
+  }
+}
+
+@keyframes slide-up {
+  0% { transform: translateY(100%); }
+  100% { transform: translateY(0); }
+}
+
+/* Reaction Burst Button & Particles */
+.feed-card-footer {
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.02);
+  align-items: center;
+}
+
+:root.dark-theme .feed-card-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.03);
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.reaction-container {
+  position: relative;
+  display: inline-block;
+}
+
+.reaction-burst-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 99px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-foreground);
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.reaction-burst-button:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.reaction-burst-button:active {
+  transform: scale(0.9) translateY(1px);
+}
+
+.reaction-burst-button.reacted {
+  background: rgba(140, 116, 186, 0.15);
+  border-color: rgba(140, 116, 186, 0.3);
+  color: var(--color-primary);
+}
+
+.reaction-burst-button.pressing {
+  transform: scale(0.93) translateZ(0);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.15), 0 1px 1px rgba(255, 255, 255, 0.05);
+}
+
+.particle-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.burst-particle {
+  position: absolute;
+  pointer-events: none;
+  font-size: 20px;
+  will-change: transform, opacity;
+  animation: particle-fly 0.9s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+}
+
+@keyframes particle-fly {
+  0% {
+    transform: translate(-50%, -50%) scale(0.5);
+    opacity: 0.3;
+  }
+  15% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.2);
+  }
+  100% {
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0.3) rotate(var(--rot));
+    opacity: 0;
+  }
+}

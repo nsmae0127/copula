@@ -384,6 +384,32 @@ export function Modal({
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [recordedFile, setRecordedFile] = useState<File | null>(null);
+  const [sheetTranslateY, setSheetTranslateY] = useState(0);
+  const sheetTouchStart = useRef<number | null>(null);
+
+  const handleSheetTouchStart = (e: React.TouchEvent<HTMLElement>) => {
+    sheetTouchStart.current = e.touches[0].clientY;
+  };
+
+  const handleSheetTouchMove = (e: React.TouchEvent<HTMLElement>) => {
+    if (sheetTouchStart.current === null) return;
+    const currentY = e.touches[0].clientY;
+    const deltaY = currentY - sheetTouchStart.current;
+    if (deltaY > 0) {
+      setSheetTranslateY(deltaY);
+    }
+  };
+
+  const handleSheetTouchEnd = () => {
+    sheetTouchStart.current = null;
+    if (sheetTranslateY > 100) {
+      triggerHaptic(35);
+      onClose();
+    } else {
+      setSheetTranslateY(0);
+    }
+  };
+
   const formRef = useRef<HTMLFormElement | null>(null);
   const dialogRef = useRef<HTMLElement | null>(null);
 
@@ -688,7 +714,25 @@ export function Modal({
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => {
       if (event.target === event.currentTarget) onClose();
     }}>
-      <section ref={dialogRef} className="modal" role="dialog" aria-modal="true" aria-label={titles[modal.type]}>
+      <section 
+        ref={dialogRef} 
+        className="modal bottom-sheet-dialog" 
+        role="dialog" 
+        aria-modal="true" 
+        aria-label={titles[modal.type]}
+        style={{
+          transform: `translateY(${sheetTranslateY}px)`,
+          transition: sheetTouchStart.current !== null ? "none" : "transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)"
+        }}
+      >
+        <div 
+          className="bottom-sheet-drag-handle-wrapper"
+          onTouchStart={handleSheetTouchStart}
+          onTouchMove={handleSheetTouchMove}
+          onTouchEnd={handleSheetTouchEnd}
+        >
+          <div className="bottom-sheet-drag-handle" />
+        </div>
         <div className="modal-head">
           <div className="modal-title">
             <span className="modal-title-icon">

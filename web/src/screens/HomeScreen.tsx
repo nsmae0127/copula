@@ -224,6 +224,9 @@ export function HomeScreen({
       onDoubleClick={() => setFocusMode((prev) => !prev)}
       title="화면 빈 곳을 더블 클릭하여 몰입 모드(Focus Mode) 토글"
     >
+      <div className="liquid-bg-blob blob-1" aria-hidden="true" />
+      <div className="liquid-bg-blob blob-2" aria-hidden="true" />
+      <div className="liquid-bg-blob blob-3" aria-hidden="true" />
       {!hasCommunities ? (
         <section className="onboarding-panel card">
           <div>
@@ -581,6 +584,11 @@ function renderFeedCard(
           </div>
         )}
       </div>
+      <footer className="feed-card-footer" onClick={(e) => e.stopPropagation()}>
+        <ReactionButton feedId={item.id} emoji="❤️" />
+        <ReactionButton feedId={item.id} emoji="✨" />
+        <ReactionButton feedId={item.id} emoji="👍" />
+      </footer>
     </article>
   );
 }
@@ -644,4 +652,129 @@ function unreadMessageCountForCommunity(state: CopulaState, communityId: string)
       !notification.read &&
       notification.communityId === communityId
   ).length;
+}
+
+interface Particle {
+  id: number;
+  emoji: string;
+  dx: string;
+  dy: string;
+  rot: string;
+}
+
+function ReactionButton({ feedId, emoji }: { feedId: string; emoji: string }) {
+  const [count, setCount] = useState(0);
+  const [reacted, setReacted] = useState(false);
+  const [pressing, setPressing] = useState(false);
+  const [particles, setParticles] = useState<Particle[]>([]);
+  const pressTimeoutRef = useRef<number | null>(null);
+
+  const storageKey = `copula-reaction-${feedId}-${emoji}`;
+  const countKey = `copula-reaction-count-${feedId}-${emoji}`;
+
+  useEffect(() => {
+    const hasReacted = localStorage.getItem(storageKey) === "true";
+    setReacted(hasReacted);
+    
+    const storedCount = localStorage.getItem(countKey);
+    if (storedCount !== null) {
+      setCount(parseInt(storedCount, 10));
+    } else {
+      const initialDummy = Math.floor(Math.random() * 5);
+      setCount(initialDummy);
+      localStorage.setItem(countKey, initialDummy.toString());
+    }
+  }, [feedId, emoji]);
+
+  const handleClick = (e: React.MouseEvent) => {
+    triggerHaptic(30);
+
+    const nextReacted = !reacted;
+    setReacted(nextReacted);
+
+    const nextCount = nextReacted ? count + 1 : Math.max(0, count - 1);
+    setCount(nextCount);
+    localStorage.setItem(storageKey, nextReacted ? "true" : "false");
+    localStorage.setItem(countKey, nextCount.toString());
+
+    if (nextReacted) {
+      createBurst();
+    }
+  };
+
+  const createBurst = () => {
+    const newParticles: Particle[] = [];
+    const particleCount = 8;
+    for (let i = 0; i < particleCount; i++) {
+      const angle = (Math.PI * 2 * i) / particleCount + (Math.random() * 0.4 - 0.2);
+      const distance = 50 + Math.random() * 60;
+      const dx = `${Math.cos(angle) * distance}px`;
+      const dy = `${Math.sin(angle) * distance - 20}px`;
+      const rot = `${Math.random() * 360 - 180}deg`;
+      
+      newParticles.push({
+        id: Date.now() + i + Math.random(),
+        emoji,
+        dx,
+        dy,
+        rot
+      });
+    }
+
+    setParticles((prev) => [...prev, ...newParticles]);
+
+    setTimeout(() => {
+      setParticles((prev) => prev.filter((p) => !newParticles.some((np) => np.id === p.id)));
+    }, 1000);
+  };
+
+  const handleTouchStart = () => {
+    setPressing(true);
+    triggerHaptic(10);
+    pressTimeoutRef.current = window.setTimeout(() => {
+      triggerHaptic([60, 30, 60]);
+      createBurst();
+      setPressing(false);
+    }, 600);
+  };
+
+  const handleTouchEnd = () => {
+    if (pressTimeoutRef.current) {
+      clearTimeout(pressTimeoutRef.current);
+      pressTimeoutRef.current = null;
+    }
+    setPressing(false);
+  };
+
+  return (
+    <div className="reaction-container">
+      <button
+        className={`reaction-burst-button ${reacted ? "reacted" : ""} ${pressing ? "pressing" : ""}`}
+        onClick={handleClick}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
+        type="button"
+      >
+        <span>{emoji}</span>
+        <span>{count}</span>
+      </button>
+
+      <div className="particle-container">
+        {particles.map((p) => (
+          <span
+            key={p.id}
+            className="burst-particle"
+            style={{
+              "--dx": p.dx,
+              "--dy": p.dy,
+              "--rot": p.rot
+            } as React.CSSProperties}
+          >
+            {p.emoji}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
 }

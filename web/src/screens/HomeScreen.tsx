@@ -4,6 +4,7 @@ import {
   Flag,
   Handshake,
   Image,
+  ImageOff,
   KeyRound,
   ListTodo,
   Megaphone,
@@ -185,7 +186,6 @@ export function HomeScreen({
           <section className="home-stories-section">
             <div className="stories-scroll-container">
               {state.communities.map((community) => {
-                const initial = community.name.charAt(0).toUpperCase();
                 const isActive = state.selectedCommunityId === community.id;
                 
                 const communityLogs = community.oneSecondLogs || [];
@@ -213,8 +213,12 @@ export function HomeScreen({
                       title={hasTodayVlog ? "오늘 1s 보기" : `${community.name} 이동`}
                     >
                       <div className="story-avatar-wrap">
-                        <div className="story-avatar">
-                          {initial}
+                        <div className={`story-avatar${community.coverUrl ? " has-image" : " is-empty"}`}>
+                          {community.coverUrl ? (
+                            <img src={community.coverUrl} alt="" loading="lazy" decoding="async" />
+                          ) : (
+                            <ImageOff aria-hidden="true" />
+                          )}
                         </div>
                         {userStreak > 0 && (
                           <div className="story-streak-badge" title={`연속 ${userStreak}일 작성`}>
@@ -310,42 +314,40 @@ function renderFeedCard(
   onOpenAlbumCommunity: (communityId: string, albumId?: string) => void
 ) {
   const { community, type, dateLabel, postedAt, title, data } = item;
-  const initial = community.name.charAt(0).toUpperCase();
   const albumCoverItem = type === "album" ? getAlbumCoverItem(data) : null;
-  const albumItemCount = type === "album" && Array.isArray(data.items) ? data.items.length : 0;
 
-  let badgeText = "";
+  let typeLabel = "";
   let badgeClass = "";
   let icon: ReactNode = null;
   let detailModule: CommunityModule = "feed";
   
   switch (type) {
     case "commitment":
-      badgeText = "약속";
+      typeLabel = "약속";
       badgeClass = "badge-commitment";
       icon = <ListTodo size={13} />;
       detailModule = "commitments";
       break;
     case "event":
-      badgeText = "일정";
+      typeLabel = "일정";
       badgeClass = "badge-event";
       icon = <CalendarDays size={13} />;
       detailModule = "calendar";
       break;
     case "dday":
-      badgeText = "D-Day";
+      typeLabel = "D-Day";
       badgeClass = "badge-dday";
       icon = <Flag size={13} />;
       detailModule = "calendar";
       break;
     case "album":
-      badgeText = "앨범";
+      typeLabel = "앨범";
       badgeClass = "badge-album";
       icon = <Image size={13} />;
       detailModule = "albums";
       break;
     case "notice":
-      badgeText = "공지";
+      typeLabel = "공지";
       badgeClass = "badge-notice";
       icon = <Megaphone size={13} />;
       detailModule = "feed";
@@ -365,7 +367,11 @@ function renderFeedCard(
       <header className="feed-card-header">
         <div className="feed-card-community">
           <div className="community-avatar-mini">
-            {community.coverUrl ? <img src={community.coverUrl} alt="" loading="lazy" decoding="async" /> : initial}
+            {community.coverUrl ? (
+              <img src={community.coverUrl} alt="" loading="lazy" decoding="async" />
+            ) : (
+              <ImageOff aria-hidden="true" />
+            )}
           </div>
           <div className="community-meta">
             <span className="community-name-line">
@@ -375,9 +381,8 @@ function renderFeedCard(
           </div>
         </div>
         <span className="feed-card-actions">
-          <span className={`feed-badge ${badgeClass}`}>
+          <span className={`feed-badge ${badgeClass}`} aria-label={typeLabel} title={typeLabel}>
             {icon}
-            {badgeText}
           </span>
           <button className="feed-more-button" type="button" onClick={handleCardClick} aria-label="자세히 보기">
             <MoreHorizontal aria-hidden="true" />
@@ -440,22 +445,11 @@ function renderFeedCard(
                 <Image size={36} />
               </div>
             )}
-            <div className="album-meta-text">
-              <h3>{title}</h3>
-              {albumCoverItem ? (
-                <p className="album-memo">{albumCoverItem.title} · {albumItemCount}개 사진·메모</p>
-              ) : data.description ? (
-                <p className="album-memo">{data.description}</p>
-              ) : null}
-            </div>
           </div>
         )}
 
         {type === "notice" && (
           <div className="feed-content-notice">
-            <div className="notice-preview-icon">
-              <Megaphone size={26} />
-            </div>
             <div className="notice-preview-copy">
               <h3>{title}</h3>
               <p>{data.body}</p>

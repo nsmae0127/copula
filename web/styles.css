@@ -5926,7 +5926,7 @@ select:focus {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: min(900px, 220vw);
+  width: min(760px, 168vw);
   aspect-ratio: 1;
   opacity: 0.13;
   pointer-events: none;
@@ -6196,6 +6196,27 @@ select:focus {
   color: var(--ink);
 }
 
+.auth-auto-login {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  justify-self: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+  animation: auth-item-enter 480ms 460ms var(--ease-out) both;
+}
+
+.auth-auto-login input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--brand-coral);
+  cursor: pointer;
+}
+
 .auth-legal-text {
   position: relative;
   z-index: 1;
@@ -6309,6 +6330,7 @@ select:focus {
   .auth-social-button,
   .auth-divider,
   .auth-email-actions,
+  .auth-auto-login,
   .auth-sub-link,
   .auth-legal-text {
     animation: none !important;
@@ -6333,31 +6355,50 @@ select:focus {
 .auth-popup {
   width: min(420px, calc(100vw - 36px));
   max-height: calc(var(--auth-visual-viewport-height, 100dvh) - 36px);
-  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.74);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 24px 70px rgba(76, 54, 82, 0.18);
+  backdrop-filter: blur(24px) saturate(1.16);
   scroll-padding-block: 18px;
   animation-name: scale-in;
 }
 
 .auth-popup .modal-head {
+  align-items: center;
   margin-bottom: 16px;
 }
 
 .auth-popup .modal-title {
   flex: 1 1 auto;
-  justify-content: center;
+  justify-content: flex-start;
+  gap: 10px;
 }
 
 .auth-popup .modal-title-icon {
-  width: 48px;
-  height: 48px;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  border-radius: 50%;
   background: var(--brand-gradient);
   color: white;
-  box-shadow: 0 10px 22px rgba(140, 116, 186, 0.2);
+  box-shadow: 0 8px 18px rgba(140, 116, 186, 0.18);
 }
 
 .auth-popup .modal-title-icon svg {
-  width: 24px;
-  height: 24px;
+  width: 19px;
+  height: 19px;
+}
+
+.auth-popup .modal-title h2 {
+  font-size: 1rem;
+  font-weight: 850;
+}
+
+.auth-popup .icon-button {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .auth-submit-button {
@@ -7323,7 +7364,6 @@ select:focus {
 }
 
 .story-button.is-active .story-avatar-wrap {
-  background: var(--brand-gradient);
   transform: scale(1.05);
 }
 
@@ -7346,12 +7386,29 @@ select:focus {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: var(--surface);
-  color: var(--primary-ink);
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--muted);
   font-size: 1.15rem;
   font-weight: 800;
   border: 2px solid var(--surface);
-  box-shadow: var(--shadow-soft);
+  box-shadow: none;
+  overflow: hidden;
+}
+
+.story-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.story-avatar svg {
+  width: 22px;
+  height: 22px;
+  stroke-width: 1.7;
+}
+
+.story-avatar.is-empty {
+  background: transparent;
 }
 
 :root.dark-theme .story-avatar {
@@ -7489,11 +7546,12 @@ select:focus {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: var(--brand-gradient);
-  color: white;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
   font-size: 0.85rem;
   font-weight: 800;
-  box-shadow: 0 2px 6px rgba(240, 113, 122, 0.22);
+  box-shadow: none;
   overflow: hidden;
 }
 
@@ -7501,6 +7559,12 @@ select:focus {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.community-avatar-mini svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.7;
 }
 
 .community-meta {
@@ -7532,13 +7596,18 @@ select:focus {
 }
 
 .feed-badge {
-  display: flex;
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
   align-items: center;
-  gap: 4px;
-  font-size: 0.72rem;
-  font-weight: 800;
-  padding: 4px 10px;
-  border-radius: 999px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.feed-badge svg {
+  width: 15px;
+  height: 15px;
 }
 
 .feed-card-actions {
@@ -7766,13 +7835,12 @@ select:focus {
 .feed-content-album {
   display: flex;
   flex-direction: column;
-  gap: 12px;
 }
 
 .album-media-container {
   width: 100%;
   aspect-ratio: 16 / 10;
-  border-radius: 10px;
+  border-radius: 6px;
   overflow: hidden;
   background: var(--bg);
 }
@@ -7789,7 +7857,7 @@ select:focus {
   width: 100%;
   aspect-ratio: 16 / 10;
   background: var(--bg);
-  border-radius: 10px;
+  border-radius: 6px;
   color: var(--muted);
   opacity: 0.6;
 }
@@ -7826,6 +7894,11 @@ select:focus {
   gap: 12px;
   min-height: 126px;
   padding: 8px 0;
+}
+
+.feed-content-notice {
+  min-height: auto;
+  padding: 10px 2px 14px;
 }
 
 .message-preview-avatar,
@@ -7920,8 +7993,59 @@ select:focus {
 
 /* Story Border with Rainbow Gradient for Today's Vlog */
 .story-button.has-today-vlog .story-avatar-wrap {
-  background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
-  padding: 2px;
+  position: relative;
+  isolation: isolate;
+  padding: 3px;
+  background: conic-gradient(
+    from var(--story-ring-angle, 0deg),
+    #ffcf4a,
+    #ff7a6b,
+    #e744a9,
+    #8c74ba,
+    #59b7c8,
+    #69c58f,
+    #ffcf4a
+  );
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.88),
+    0 0 14px rgba(229, 68, 169, 0.28);
+  animation:
+    story-ring-spin 2.8s linear infinite,
+    story-ring-sparkle 1.4s ease-in-out infinite alternate;
+}
+
+@property --story-ring-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes story-ring-spin {
+  to {
+    --story-ring-angle: 360deg;
+  }
+}
+
+@keyframes story-ring-sparkle {
+  from {
+    filter: saturate(0.96) brightness(0.98);
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.82),
+      0 0 8px rgba(229, 68, 169, 0.18);
+  }
+
+  to {
+    filter: saturate(1.18) brightness(1.08);
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.96),
+      0 0 18px rgba(89, 183, 200, 0.36);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .story-button.has-today-vlog .story-avatar-wrap {
+    animation: none;
+  }
 }
 
 /* Streak Badge for Stories */
@@ -8075,20 +8199,6 @@ select:focus {
   background: radial-gradient(circle, var(--dynamic-accent-glow) 0%, transparent 70%);
   opacity: 0.12;
   transition: background 0.8s ease, transform var(--motion-slow) ease;
-}
-
-/* 1. Iridescent Spin Ring for Stories with Today's Vlog */
-.story-button.has-today-vlog .story-avatar-wrap {
-  background: linear-gradient(135deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888, #3b82f6, #10b981, #f09433);
-  background-size: 300% 300%;
-  animation: story-ring-flow 5s linear infinite;
-  padding: 2.2px;
-}
-
-@keyframes story-ring-flow {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
 }
 
 /* 2. D-Day Ticket Skin */
@@ -9734,4 +9844,22 @@ body.dark-theme .settings-row-btn:hover {
   .skeleton-block {
     animation: none;
   }
+}
+
+/* Keep the primary notification action visually light in the top bar. */
+.topbar-notification-button,
+:root:not(.dark-theme) .topbar-notification-button,
+:root.dark-theme .topbar-notification-button {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.topbar-notification-button:hover,
+:root:not(.dark-theme) .topbar-notification-button:hover,
+:root.dark-theme .topbar-notification-button:hover {
+  border: 0;
+  background: var(--surface-muted);
+  box-shadow: none;
 }

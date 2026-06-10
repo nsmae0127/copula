@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "../database.types";
+import { authSessionStorage } from "./authPersistence";
 
 let client: SupabaseClient<Database> | null = null;
 
@@ -14,7 +15,13 @@ export function getSupabaseClient() {
 
   client ??= createClient(
     import.meta.env.VITE_SUPABASE_URL!,
-    import.meta.env.VITE_SUPABASE_ANON_KEY!
+    import.meta.env.VITE_SUPABASE_ANON_KEY!,
+    {
+      auth: {
+        persistSession: true,
+        storage: authSessionStorage
+      }
+    }
   );
 
   return client;

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import type { AuthCredentials, DataBackend, OAuthProvider } from "../repositories/repository";
 import { useDialogFocusTrap } from "../hooks/useDialogFocusTrap";
+import { readAutoLoginPreference, setAutoLoginPreference } from "../lib/authPersistence";
 
 type AuthPanel = "signIn" | "signUp" | "reset" | "terms" | "privacy" | "support" | null;
 type RecentLoginMethod = OAuthProvider | "email";
@@ -58,6 +59,7 @@ export function AuthScreen({
   const [activeOAuthProvider, setActiveOAuthProvider] = useState<OAuthProvider | null>(null);
   const [availableOAuthProviders, setAvailableOAuthProviders] = useState<OAuthProvider[] | null>(null);
   const [recentLoginMethod, setRecentLoginMethod] = useState<RecentLoginMethod | null>(readRecentLoginMethod);
+  const [autoLogin, setAutoLogin] = useState(readAutoLoginPreference);
   const isBusy = isLoading || isSubmitting;
   const isNotice = Boolean(error?.includes("확인 이메일"));
 
@@ -87,6 +89,7 @@ export function AuthScreen({
     setNotice(null);
     setActiveOAuthProvider(provider);
     setIsSubmitting(true);
+    setAutoLoginPreference(autoLogin);
     rememberRecentLoginMethod(provider);
 
     try {
@@ -108,6 +111,7 @@ export function AuthScreen({
     const form = new FormData(event.currentTarget);
     const mode = panel === "signUp" ? "signUp" : "signIn";
     setIsSubmitting(true);
+    setAutoLoginPreference(autoLogin);
 
     try {
       setNotice(null);
@@ -239,6 +243,19 @@ export function AuthScreen({
               >
                 비밀번호를 잊으셨나요?
               </button>
+
+              <label className="auth-auto-login">
+                <input
+                  type="checkbox"
+                  checked={autoLogin}
+                  onChange={(event) => {
+                    const enabled = event.currentTarget.checked;
+                    setAutoLogin(enabled);
+                    setAutoLoginPreference(enabled);
+                  }}
+                />
+                <span>자동 로그인</span>
+              </label>
 
               <div className="auth-divider" aria-hidden="true">
                 <span />
@@ -461,6 +478,7 @@ function AuthPopup({
             <span className="modal-title-icon">
               <Icon aria-hidden="true" />
             </span>
+            <h2>{title}</h2>
           </div>
           <button className="icon-button" onClick={onClose} aria-label="닫기">
             <X aria-hidden="true" />

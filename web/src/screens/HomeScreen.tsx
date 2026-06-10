@@ -61,33 +61,7 @@ export function HomeScreen({
 
 
 
-  // 3. 필터 칩 슬라이더 상태
-  const [feedFilter, setFeedFilter] = useState<"all" | "commitment" | "event" | "album" | "notice">("all");
-  const filterContainerRef = useRef<HTMLDivElement | null>(null);
-  const [indicatorStyle, setIndicatorStyle] = useState<CSSProperties>({});
 
-  const filterOptions = [
-    { value: "all", label: "전체" },
-    { value: "commitment", label: "약속" },
-    { value: "event", label: "일정" },
-    { value: "album", label: "앨범" },
-    { value: "notice", label: "공지" },
-  ];
-
-  useEffect(() => {
-    const container = filterContainerRef.current;
-    if (!container) return;
-    const activeBtn = container.querySelector(`.filter-chip-btn.active`) as HTMLButtonElement | null;
-    if (activeBtn) {
-      setIndicatorStyle({
-        transform: `translateX(${activeBtn.offsetLeft}px)`,
-        width: `${activeBtn.offsetWidth}px`,
-        opacity: 1
-      });
-    } else {
-      setIndicatorStyle({ opacity: 0 });
-    }
-  }, [feedFilter]);
 
   // 4. 플로팅 디데이 버블 상태
   const [bubbleOpen, setBubbleOpen] = useState(false);
@@ -264,14 +238,8 @@ export function HomeScreen({
     })
   ] : [];
 
-  // 필터링 적용
-  const filteredFeed = allFeedItems.filter(item => {
-    if (feedFilter === "all") return true;
-    return item.type === feedFilter;
-  });
-
   // Home은 모든 Copula의 최신 활동을 시간순으로 모아 보여준다.
-  const sortedFeed = filteredFeed.sort(
+  const sortedFeed = allFeedItems.sort(
     (a, b) => new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime()
   );
 
@@ -412,23 +380,6 @@ export function HomeScreen({
 
           {/* 인스타 피드 스냅 컨테이너 */}
           <section className="home-feed-section">
-            <div className="feed-filter-chips-container" ref={filterContainerRef}>
-              <div className="feed-filter-chips-scroll">
-                {filterOptions.map((opt) => (
-                  <button
-                    key={opt.value}
-                    className={`filter-chip-btn ${feedFilter === opt.value ? "active" : ""}`}
-                    onClick={() => {
-                      triggerHaptic(25);
-                      setFeedFilter(opt.value as any);
-                    }}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-                <div className="active-filter-indicator" style={indicatorStyle} />
-              </div>
-            </div>
 
             {sortedFeed.length > 0 ? (
               <div 

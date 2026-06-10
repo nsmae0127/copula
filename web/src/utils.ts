@@ -249,3 +249,13 @@ export function triggerConfetti() {
 
   requestAnimationFrame(updateAndDraw);
 }
+
+export function triggerHaptic(pattern: number | number[] = 40) {
+  if (typeof navigator !== "undefined" && navigator.vibrate) {
+    try {
+      navigator.vibrate(pattern);
+    } catch {
+      // Ignore vibration errors on unsupported hardware or browsers
+    }
+  }
+}

@@ -93,6 +93,19 @@ export function Layout({
   }, [theme]);
 
   useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleChange = (e: MediaQueryListEvent) => {
+      const saved = localStorage.getItem("theme");
+      if (!saved) {
+        setTheme(e.matches ? "dark" : "light");
+      }
+    };
+
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, []);
+
+  useEffect(() => {
     setIsPlusMenuOpen(false);
     setIsAccountMenuOpen(false);
   }, [activeView, activeModule]);

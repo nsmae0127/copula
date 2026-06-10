@@ -39,7 +39,7 @@ import type {
   Notice
 } from "../types";
 import { useDialogFocusTrap } from "../hooks/useDialogFocusTrap";
-import { addDays, toInputDate } from "../utils";
+import { addDays, toInputDate, triggerHaptic } from "../utils";
 
 interface ModalState {
   type: ModalType;
@@ -198,7 +198,7 @@ export function CameraRecorder({ onFileReady }: CameraRecorderProps) {
   const startPreview = async () => {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+        video: { facingMode: "user", width: { ideal: 480 }, height: { ideal: 480 } },
         audio: true
       });
       setStream(mediaStream);
@@ -218,15 +218,15 @@ export function CameraRecorder({ onFileReady }: CameraRecorderProps) {
     if (!stream) return;
     chunksRef.current = [];
     
-    let options = { mimeType: "video/webm;codecs=vp9" };
+    let options: any = { mimeType: "video/webm;codecs=vp9", videoBitsPerSecond: 800000 };
     if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-      options = { mimeType: "video/webm;codecs=vp8" };
+      options = { mimeType: "video/webm;codecs=vp8", videoBitsPerSecond: 800000 };
     }
     if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-      options = { mimeType: "video/webm" };
+      options = { mimeType: "video/webm", videoBitsPerSecond: 800000 };
     }
     if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-      options = { mimeType: "video/mp4" };
+      options = { mimeType: "video/mp4", videoBitsPerSecond: 800000 };
     }
 
     try {
@@ -240,6 +240,7 @@ export function CameraRecorder({ onFileReady }: CameraRecorderProps) {
       };
 
       recorder.onstop = () => {
+        triggerHaptic(50);
         const blob = new Blob(chunksRef.current, { type: "video/webm" });
         const file = new File([blob], "1s-vlog.webm", { type: "video/webm" });
         const url = URL.createObjectURL(blob);

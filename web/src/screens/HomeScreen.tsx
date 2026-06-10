@@ -13,7 +13,7 @@ import {
   Flame,
 } from "lucide-react";
 import type { Community, CommunityModule, CopulaState, VisibilityScope } from "../types";
-import { daysUntil, startOfToday, calculateUserStreak, getAlbumCoverItem, getLatestAlbumItem } from "../utils";
+import { daysUntil, startOfToday, calculateUserStreak, getAlbumCoverItem, getLatestAlbumItem, triggerHaptic } from "../utils";
 import { EmptyState } from "../components/ui";
 import { OneSecondPlayerOverlay } from "../components/OneSecondPlayerOverlay";
 
@@ -85,7 +85,7 @@ export function HomeScreen({
     const deltaX = currentX - touchStart.current.x;
 
     if (deltaY > 0 && Math.abs(deltaY) > Math.abs(deltaX)) {
-      const pull = Math.min(120, deltaY * 0.4);
+      const pull = Math.min(90, Math.pow(Math.max(0, deltaY), 0.75) * 1.8);
       setPullOffset(pull);
       if (e.cancelable) {
         e.preventDefault();
@@ -98,6 +98,7 @@ export function HomeScreen({
     touchStart.current = null;
     
     if (pullOffset >= pullThreshold) {
+      triggerHaptic(40);
       setIsRefreshing(true);
       setPullOffset(pullThreshold);
       

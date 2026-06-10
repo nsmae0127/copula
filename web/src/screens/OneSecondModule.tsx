@@ -364,7 +364,7 @@ export function OneSecondModule({
             </div>
 
             {/* Video & Playback Card */}
-            <div className="vlog-video-wrapper">
+            <div className={`vlog-video-wrapper filter-theme-${selectedFilter}`}>
               {!isFinished ? (
                 <>
                   <video
@@ -379,6 +379,19 @@ export function OneSecondModule({
                     onClick={togglePlayPause}
                     className="vlog-video-element"
                   />
+
+                  {/* REC 필터 오버레이 */}
+                  {selectedFilter === "rec" && (
+                    <div className="vlog-filter-overlay-rec">
+                      <span className="rec-dot-blink">● REC</span>
+                      <span className="rec-time">00:00:01</span>
+                    </div>
+                  )}
+
+                  {/* 폴라로이드 필터 오버레이 */}
+                  {selectedFilter === "polaroid" && (
+                    <div className="vlog-filter-overlay-polaroid" />
+                  )}
 
                   {/* Play/Pause Center Indicator (Brief fade-in-out on toggle, or overlay when paused) */}
                   {!isPlaying ? (

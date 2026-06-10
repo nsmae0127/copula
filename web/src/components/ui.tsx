@@ -27,7 +27,7 @@ import type {
   DDayItem,
   NotificationKind
 } from "../types";
-import { ddayLabel, formatDate, formatDateTime, getAlbumCoverItem, roleLabel } from "../utils";
+import { ddayLabel, formatDate, formatDateTime, getAlbumCoverItem, roleLabel, triggerHaptic } from "../utils";
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return <section className={`card ${className}`}>{children}</section>;
@@ -379,7 +379,7 @@ export function MemberRow({
         {onNudge && currentUserId && member.userId !== currentUserId && (
           <button
             className="icon-button compact nudge-btn"
-            onClick={() => onNudge(member)}
+             onClick={() => { triggerHaptic([30, 50]); onNudge(member); }}
             title={`${member.name}님 콕 찌르기`}
             aria-label={`${member.name}님 콕 찌르기`}
             type="button"

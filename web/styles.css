@@ -11242,108 +11242,6 @@ body.dark-theme .settings-row-btn:hover {
   }
 }
 
-/* 1. 실시간 오라 무드 램프 CSS */
-.home-mood-auras-section {
-  padding: 16px 20px 8px 20px;
-  background: transparent;
-}
-
-.mood-auras-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.mood-auras-status {
-  font-size: 12px;
-  color: var(--color-foreground-light);
-}
-
-.mood-auras-status strong {
-  color: var(--color-primary);
-  font-weight: 600;
-}
-
-.mood-auras-panel {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-  padding: 12px 14px;
-}
-
-:root.dark-theme .mood-auras-panel {
-  background: rgba(20, 16, 25, 0.35);
-  border-color: rgba(255, 255, 255, 0.04);
-}
-
-.my-mood-picker {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.picker-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-foreground-light);
-  white-space: nowrap;
-}
-
-.mood-chips-container {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  padding-bottom: 2px;
-}
-
-.mood-chips-container::-webkit-scrollbar {
-  display: none;
-}
-
-.mood-chip-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 99px;
-  padding: 6px 12px;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--color-foreground);
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
-}
-
-.mood-chip-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.15);
-}
-
-.mood-chip-btn.active {
-  background: var(--color-primary-light, rgba(140, 116, 186, 0.18));
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-  font-weight: 600;
-  transform: scale(1.03);
-  box-shadow: 0 4px 12px rgba(140, 116, 186, 0.15);
-}
-
-/* 무드 램프 연동 Liquid Blobs 컬러 */
-.liquid-bg-blob.blob-1 {
-  background: radial-gradient(circle, var(--aura-color-1, rgba(140, 116, 186, 0.15)) 0%, transparent 70%) !important;
-}
-
-.liquid-bg-blob.blob-2 {
-  background: radial-gradient(circle, var(--aura-color-2, rgba(60, 208, 112, 0.12)) 0%, transparent 70%) !important;
-}
-
 
 /* 2. Cinematic Album Carousel CSS */
 .album-carousel-container {
@@ -11633,4 +11531,215 @@ body.dark-theme .settings-row-btn:hover {
 .countdown-close-btn {
   width: 100% !important;
   border-radius: 99px !important;
+}
+
+/* Today Screen Premium Suggestions 2, 3, 4 Styles */
+
+/* 2. 원터치 할 일 토글 & 취소선 모션 (Checklist Stripe) */
+.today-task-row-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+  position: relative;
+}
+
+.today-check-circle {
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.02);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 12px;
+  color: #fff;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+:root.dark-theme .today-check-circle {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.today-check-circle:hover {
+  border-color: var(--color-primary);
+  transform: scale(1.08);
+}
+
+.today-check-circle.checked {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  transform: scale(0.92);
+}
+
+.today-task-row-wrapper.is-completed {
+  opacity: 0.35;
+  transform: translateX(10px) scale(0.97);
+  pointer-events: none;
+}
+
+.today-task-row-wrapper.is-completed .today-list-row strong {
+  text-decoration: line-through;
+  color: var(--color-foreground-light);
+  transition: text-decoration-color 0.4s ease;
+}
+
+.today-task-row-wrapper .today-list-row {
+  flex: 1;
+}
+
+
+/* 3. '오늘의 1초' 그라데이션 쉬머 카드 (Vlog Card Glow) */
+.today-vlog-button {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05) !important;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.1), box-shadow 0.2s ease, border-color 0.2s ease !important;
+}
+
+.today-vlog-button::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 100% 100%, var(--accent, var(--color-primary)), transparent 60%);
+  opacity: 0.16;
+  transition: opacity 0.3s ease;
+}
+
+.today-vlog-button::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+  transform: translateX(-100%);
+  animation: vlog-shimmer 2.5s infinite;
+  pointer-events: none;
+}
+
+.today-vlog-button:hover {
+  transform: translateY(-2px) scale(1.02);
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 0 8px 24px rgba(44, 36, 50, 0.1) !important;
+}
+
+.today-vlog-button:hover::before {
+  opacity: 0.28;
+}
+
+.today-vlog-button:active {
+  transform: scale(0.97) translateY(0);
+}
+
+@keyframes vlog-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+
+/* 4. 실시간 타임라인 펄스 닷 (Timeline Parallax Indicator) */
+.today-list {
+  position: relative;
+  padding-left: 14px;
+}
+
+.today-list::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: 17px;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+:root.dark-theme .today-list::before {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.today-timeline-wrapper {
+  display: flex;
+  align-items: center;
+  position: relative;
+  width: 100%;
+}
+
+.timeline-line-node {
+  position: absolute;
+  left: -2px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+}
+
+.timeline-node-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1.5px solid var(--color-background, #fff);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+:root.dark-theme .timeline-node-dot {
+  border-color: #121016;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.timeline-line-node.past .timeline-node-dot {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.timeline-line-node.near .timeline-node-dot {
+  background: var(--color-primary);
+  box-shadow: 0 0 8px var(--color-primary);
+  transform: scale(1.2);
+}
+
+.timeline-line-node.near .timeline-node-dot::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1px solid var(--color-primary);
+  animation: node-pulse 1.8s infinite;
+  opacity: 0;
+}
+
+@keyframes node-pulse {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+
+.today-list-row.is-past {
+  opacity: 0.45;
+}
+
+.today-list-row.is-near {
+  border-color: rgba(140, 116, 186, 0.25) !important;
+  box-shadow: 0 4px 16px rgba(140, 116, 186, 0.06);
+}
+
+.today-timeline-wrapper .today-list-row {
+  margin-left: 20px;
+  flex: 1;
 }

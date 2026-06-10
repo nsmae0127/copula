@@ -59,40 +59,7 @@ export function HomeScreen({
   const [focusMode, setFocusMode] = useState(false);
   const [activeAccent, setActiveAccent] = useState("#8c74ba");
 
-  // 1. 실시간 오라 무드 램프 상태
-  const moodPresets = [
-    { label: "연락 가능", emoji: "💚", color1: "#3cd070", color2: "#5ce1e6" },
-    { label: "바쁨/집중", emoji: "❤️", color1: "#ff5252", color2: "#f68080" },
-    { label: "휴식 중", emoji: "💜", color1: "#8c74ba", color2: "#a18cd1" },
-    { label: "외출/이동", emoji: "💛", color1: "#ffb900", color2: "#ff9a00" }
-  ];
-  
-  const [myMood, setMyMood] = useState(() => {
-    const saved = localStorage.getItem("copula-my-mood");
-    if (saved) {
-      const found = moodPresets.find(m => m.label === saved);
-      if (found) return found;
-    }
-    return moodPresets[0];
-  });
 
-  const [partnerMood, setPartnerMood] = useState(moodPresets[2]);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      const remainingPresets = moodPresets.filter(m => m.label !== partnerMood.label);
-      const randomMood = remainingPresets[Math.floor(Math.random() * remainingPresets.length)];
-      setPartnerMood(randomMood);
-      triggerHaptic(20);
-    }, 30000);
-    return () => clearInterval(timer);
-  }, [partnerMood]);
-
-  const handleMyMoodChange = (mood: typeof moodPresets[0]) => {
-    triggerHaptic(35);
-    setMyMood(mood);
-    localStorage.setItem("copula-my-mood", mood.label);
-  };
 
   // 3. 필터 칩 슬라이더 상태
   const [feedFilter, setFeedFilter] = useState<"all" | "commitment" | "event" | "album" | "notice">("all");
@@ -311,11 +278,7 @@ export function HomeScreen({
   return (
     <div 
       className={`home-screen-container ${focusMode ? "focus-mode-active" : ""}`}
-      style={{
-        "--dynamic-accent-glow": activeAccent,
-        "--aura-color-1": myMood.color1,
-        "--aura-color-2": partnerMood.color1
-      } as any}
+      style={{ "--dynamic-accent-glow": activeAccent } as any}
       onDoubleClick={() => setFocusMode((prev) => !prev)}
       title="화면 빈 곳을 더블 클릭하여 몰입 모드(Focus Mode) 토글"
     >
@@ -347,35 +310,6 @@ export function HomeScreen({
         </section>
       ) : (
         <>
-          {/* 실시간 오라 무드 램프 패널 */}
-          <section className="home-mood-auras-section">
-            <div className="mood-auras-header">
-              <span className="eyebrow">실시간 무드 램프</span>
-              <span className="mood-auras-status">
-                상대방은 지금 <strong>{partnerMood.emoji} {partnerMood.label}</strong>
-              </span>
-            </div>
-            
-            <div className="mood-auras-panel">
-              <div className="my-mood-picker">
-                <span className="picker-label">내 기분:</span>
-                <div className="mood-chips-container">
-                  {moodPresets.map((mood) => (
-                    <button
-                      key={mood.label}
-                      type="button"
-                      className={`mood-chip-btn ${myMood.label === mood.label ? "active" : ""}`}
-                      onClick={() => handleMyMoodChange(mood)}
-                      title={mood.label}
-                    >
-                      <span className="mood-chip-emoji">{mood.emoji}</span>
-                      <span className="mood-chip-text">{mood.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </section>
 
           {/* 가로형 My Copula 스토리 바 */}
           <section className="home-stories-section">

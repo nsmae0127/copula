@@ -1,23 +1,37 @@
-import { CalendarDays, CheckCircle2, ChevronRight, Clock3, ListTodo, Plus, Video } from "lucide-react";
-import type { CSSProperties, ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
+import { CalendarDays, CheckCircle2, ChevronRight, Clock3, ListTodo, Plus, Video, Check } from "lucide-react";
 import type { CommunityModule, CopulaState } from "../types";
 import { EmptyState } from "../components/ui";
+import { triggerHaptic } from "../utils";
 
 interface TodayScreenProps {
   state: CopulaState;
   onOpenCommunityModule: (communityId: string, module: CommunityModule) => void;
   onOpenOneSecondUpload: (communityId: string) => void;
+  onToggleCommitment: (communityId: string, commitmentId: string) => Promise<void> | void;
 }
 
 export function TodayScreen({
   state,
   onOpenCommunityModule,
-  onOpenOneSecondUpload
+  onOpenOneSecondUpload,
+  onToggleCommitment
 }: TodayScreenProps) {
   const currentUserId = state.currentUser?.id ?? "";
   const today = startOfDay(new Date());
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const [completedIds, setCompletedIds] = useState<string[]>([]);
+
+  const handleToggleCheck = (communityId: string, commitmentId: string) => {
+    triggerHaptic(40);
+    setCompletedIds((prev) => [...prev, commitmentId]);
+
+    setTimeout(() => {
+      onToggleCommitment(communityId, commitmentId);
+    }, 700);
+  };
 
   const schedules = state.communities
     .flatMap((community) =>
@@ -101,21 +115,32 @@ export function TodayScreen({
             count={schedules.length}
             empty="오늘 예정된 일정이 없습니다."
           >
-            {schedules.map(({ community, event }) => (
-              <button
-                key={`${community.id}-${event.id}`}
-                type="button"
-                className="today-list-row"
-                onClick={() => onOpenCommunityModule(community.id, "calendar")}
-              >
-                <span className="today-time">{formatTime(event.startsAt)}</span>
-                <span className="today-list-copy">
-                  <strong>{event.title}</strong>
-                  <small>{community.name}{event.location ? ` · ${event.location}` : ""}</small>
-                </span>
-                <ChevronRight aria-hidden="true" />
-              </button>
-            ))}
+            {schedules.map(({ community, event }) => {
+              const startsAt = new Date(event.startsAt);
+              const now = new Date();
+              const isPast = startsAt < now;
+              const isNear = Math.abs(startsAt.getTime() - now.getTime()) < 3600000;
+              
+              return (
+                <div className="today-timeline-wrapper" key={`${community.id}-${event.id}`}>
+                  <div className={`timeline-line-node ${isPast ? "past" : ""} ${isNear ? "near" : ""}`}>
+                    <div className="timeline-node-dot" />
+                  </div>
+                  <button
+                    type="button"
+                    className={`today-list-row ${isPast ? "is-past" : ""} ${isNear ? "is-near" : ""}`}
+                    onClick={() => onOpenCommunityModule(community.id, "calendar")}
+                  >
+                    <span className="today-time">{formatTime(event.startsAt)}</span>
+                    <span className="today-list-copy">
+                      <strong>{event.title}</strong>
+                      <small>{community.name}{event.location ? ` · ${event.location}` : ""}</small>
+                    </span>
+                    <ChevronRight aria-hidden="true" />
+                  </button>
+                </div>
+              );
+            })}
           </TodayListSection>
 
           <TodayListSection
@@ -124,21 +149,39 @@ export function TodayScreen({
             count={commitments.length}
             empty="지금 맡은 할 일이 없습니다."
           >
-            {commitments.map(({ community, commitment }) => (
-              <button
-                key={`${community.id}-${commitment.id}`}
-                type="button"
-                className="today-list-row"
-                onClick={() => onOpenCommunityModule(community.id, "commitments")}
-              >
-                <span className="today-task-icon"><Clock3 aria-hidden="true" /></span>
-                <span className="today-list-copy">
-                  <strong>{commitment.title}</strong>
-                  <small>{community.name} · {formatDue(commitment.dueAt)}</small>
-                </span>
-                <ChevronRight aria-hidden="true" />
-              </button>
-            ))}
+            {commitments.map(({ community, commitment }) => {
+              const isCompleted = completedIds.includes(commitment.id);
+              return (
+                <div 
+                  key={`${community.id}-${commitment.id}`}
+                  className={`today-task-row-wrapper ${isCompleted ? "is-completed" : ""}`}
+                >
+                  <button
+                    type="button"
+                    className={`today-check-circle ${isCompleted ? "checked" : ""}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleCheck(community.id, commitment.id);
+                    }}
+                    aria-label="할 일 완료 체크"
+                  >
+                    {isCompleted && <Check size={10} strokeWidth={3} />}
+                  </button>
+                  <button
+                    type="button"
+                    className="today-list-row"
+                    onClick={() => onOpenCommunityModule(community.id, "commitments")}
+                  >
+                    <span className="today-task-icon"><Clock3 aria-hidden="true" /></span>
+                    <span className="today-list-copy">
+                      <strong>{commitment.title}</strong>
+                      <small>{community.name} · {formatDue(commitment.dueAt)}</small>
+                    </span>
+                    <ChevronRight aria-hidden="true" />
+                  </button>
+                </div>
+              );
+            })}
           </TodayListSection>
         </>
       )}

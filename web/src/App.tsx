@@ -920,6 +920,9 @@ export function App() {
             actions.selectCommunity(communityId);
             setModal({ type: "1sUpload" });
           }}
+          onToggleCommitment={async (communityId, commitmentId) => {
+            await actions.toggleCommitment(communityId, commitmentId);
+          }}
         />
       );
     }

@@ -23,13 +23,21 @@ export function TodayScreen({
   tomorrow.setDate(tomorrow.getDate() + 1);
 
   const [completedIds, setCompletedIds] = useState<string[]>([]);
+  const [celebrations, setCelebrations] = useState<Record<string, string>>({});
 
   const handleToggleCheck = (communityId: string, commitmentId: string) => {
     triggerHaptic(40);
+    const congrats = ["Done! 🎉", "Clear! 🌟", "Good! 👍", "Perfect! 💯"][Math.floor(Math.random() * 4)];
+    setCelebrations((prev) => ({ ...prev, [commitmentId]: congrats }));
     setCompletedIds((prev) => [...prev, commitmentId]);
 
     setTimeout(() => {
       onToggleCommitment(communityId, commitmentId);
+      setCelebrations((prev) => {
+        const next = { ...prev };
+        delete next[commitmentId];
+        return next;
+      });
     }, 700);
   };
 
@@ -70,6 +78,14 @@ export function TodayScreen({
           <h1>Today</h1>
         </div>
       </header>
+
+      {state.communities.length > 0 && (
+        <TodayBriefingCard 
+          schedulesCount={schedules.length}
+          commitmentsCount={commitments.length}
+          missingLogsCount={missingLogs.length}
+        />
+      )}
 
       {!state.communities.length ? (
         <EmptyState
@@ -151,11 +167,17 @@ export function TodayScreen({
           >
             {commitments.map(({ community, commitment }) => {
               const isCompleted = completedIds.includes(commitment.id);
+              const celebText = celebrations[commitment.id];
               return (
                 <div 
                   key={`${community.id}-${commitment.id}`}
                   className={`today-task-row-wrapper ${isCompleted ? "is-completed" : ""}`}
                 >
+                  {isCompleted && celebText && (
+                    <div className="task-celebration-overlay">
+                      {celebText}
+                    </div>
+                  )}
                   <button
                     type="button"
                     className={`today-check-circle ${isCompleted ? "checked" : ""}`}
@@ -242,4 +264,45 @@ function formatDue(value: string) {
   if (days === 0) return "오늘 마감";
   if (days === 1) return "내일 마감";
   return `${days}일 남음`;
+}
+
+// 1. Today Briefing Card Component
+function TodayBriefingCard({ 
+  schedulesCount, 
+  commitmentsCount, 
+  missingLogsCount 
+}: { 
+  schedulesCount: number; 
+  commitmentsCount: number; 
+  missingLogsCount: number; 
+}) {
+  const totalRemaining = schedulesCount + commitmentsCount + missingLogsCount;
+  
+  let emoji = "☀️";
+  let title = "상쾌한 하루입니다!";
+  let subtitle = "오늘 예정된 모든 일과를 완료했어요. 자유로운 시간을 즐겨보세요!";
+  let cardClass = "briefing-clear";
+
+  if (totalRemaining > 0 && totalRemaining <= 2) {
+    emoji = "⛅";
+    title = "오늘 할 일이 조금 남았네요";
+    subtitle = `남은 일과가 ${totalRemaining}개 있습니다. 가볍게 마무리해 볼까요?`;
+    cardClass = "briefing-cloudy";
+  } else if (totalRemaining > 2) {
+    emoji = "☔";
+    title = "오늘 챙겨야 할 일이 많아요";
+    subtitle = `일정 및 할 일이 총 ${totalRemaining}개 대기 중입니다. 차근차근 해결해 보아요!`;
+    cardClass = "briefing-rainy";
+  }
+
+  return (
+    <div className={`today-briefing-card ${cardClass}`}>
+      <div className="briefing-glow" />
+      <div className="briefing-emoji">{emoji}</div>
+      <div className="briefing-info">
+        <h3>{title}</h3>
+        <p>{subtitle}</p>
+      </div>
+    </div>
+  );
 }

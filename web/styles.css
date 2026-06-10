@@ -11513,9 +11513,8 @@ body.dark-theme .settings-row-btn:hover {
 }
 
 .today-task-row-wrapper.is-completed {
-  opacity: 0.35;
-  transform: translateX(10px) scale(0.97);
   pointer-events: none;
+  animation: task-swipe-out 0.65s cubic-bezier(0.25, 1, 0.5, 1) forwards;
 }
 
 .today-task-row-wrapper.is-completed .today-list-row strong {
@@ -11676,4 +11675,154 @@ body.dark-theme .settings-row-btn:hover {
 .today-timeline-wrapper .today-list-row {
   margin-left: 20px;
   flex: 1;
+}
+
+/* Today Briefing Card Styling (Suggestion 1) */
+.today-briefing-card {
+  position: relative;
+  margin: 16px 20px 24px 20px;
+  padding: 18px 20px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px 0 rgba(44, 36, 50, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(14px) saturate(180%);
+  -webkit-backdrop-filter: blur(14px) saturate(180%);
+}
+
+:root.dark-theme .today-briefing-card {
+  background: rgba(20, 16, 25, 0.35);
+  border-color: rgba(255, 255, 255, 0.04);
+}
+
+.briefing-glow {
+  position: absolute;
+  top: -50%;
+  left: -20%;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  filter: blur(40px);
+  opacity: 0.15;
+  pointer-events: none;
+}
+
+/* 맑음 테마 */
+.today-briefing-card.briefing-clear {
+  border-color: rgba(255, 185, 0, 0.15);
+}
+.today-briefing-card.briefing-clear .briefing-glow {
+  background: #ffb900;
+  opacity: 0.2;
+}
+
+/* 구름 테마 */
+.today-briefing-card.briefing-cloudy {
+  border-color: rgba(140, 116, 186, 0.15);
+}
+.today-briefing-card.briefing-cloudy .briefing-glow {
+  background: #8c74ba;
+}
+
+/* 비 테마 */
+.today-briefing-card.briefing-rainy {
+  border-color: rgba(255, 82, 82, 0.15);
+}
+.today-briefing-card.briefing-rainy .briefing-glow {
+  background: #ff5252;
+}
+
+.briefing-emoji {
+  font-size: 32px;
+  line-height: 1;
+  z-index: 2;
+  animation: float-emoji 3s ease-in-out infinite alternate;
+}
+
+@keyframes float-emoji {
+  0% { transform: translateY(0px) rotate(0deg); }
+  100% { transform: translateY(-4px) rotate(5deg); }
+}
+
+.briefing-info {
+  z-index: 2;
+  flex: 1;
+}
+
+.briefing-info h3 {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0 0 4px 0;
+  color: var(--color-foreground);
+}
+
+.briefing-info p {
+  font-size: 11.5px;
+  margin: 0;
+  color: var(--color-foreground-light);
+  line-height: 1.4;
+}
+
+
+/* 할 일 완료 축하 텍스트 레이아웃 (Suggestion 2) */
+.task-celebration-overlay {
+  position: absolute;
+  top: 50%;
+  left: 36px;
+  transform: translateY(-50%);
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: 99px;
+  box-shadow: 0 4px 12px rgba(140, 116, 186, 0.3);
+  z-index: 99;
+  pointer-events: none;
+  animation: celebration-fade-up 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes celebration-fade-up {
+  0% {
+    transform: translateY(-20%) scale(0.6);
+    opacity: 0;
+  }
+  20% {
+    transform: translateY(-60%) scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-120%) scale(0.9);
+    opacity: 0;
+  }
+}
+
+/* 할 일 스와이프 아웃 애니메이션 */
+@keyframes task-swipe-out {
+  0% {
+    transform: translateX(0) rotate(0deg);
+    opacity: 1;
+    max-height: 80px;
+    margin-bottom: 8px;
+  }
+  50% {
+    transform: translateX(30px) rotate(1deg);
+    opacity: 0.5;
+  }
+  100% {
+    transform: translateX(100%) rotate(3deg);
+    opacity: 0;
+    max-height: 0;
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-top-width: 0;
+    border-bottom-width: 0;
+    overflow: hidden;
+  }
 }

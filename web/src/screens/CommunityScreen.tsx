@@ -26,7 +26,14 @@ import {
   UserRound,
   Users,
   Video,
-  Wallet
+  Wallet,
+  PiggyBank,
+  TrendingUp,
+  Coins,
+  Calculator,
+  Send,
+  AlertTriangle,
+  PlusCircle
 } from "lucide-react";
 import { getKoreanHoliday } from "../holidays";
 import type { Album, CalendarEvent, Community, CommunityModule, CopulaNotification, Role, VisibilityScope, OneSecondLog } from "../types";
@@ -96,6 +103,9 @@ interface CommunityScreenProps {
   onDeleteOneSecondLog: (logId: string) => void;
   onAddMergedVlogToAlbum: (communityId: string, dateKey: string, videoFile: File) => Promise<void> | void;
   onNudgeMember?: (memberId: string, memberName: string) => void;
+  onAddExpense: (communityId: string, input: { title: string; amount: number; category: any; paidByUserId: string; date: string }) => Promise<void> | void;
+  onDeleteExpense: (communityId: string, expenseId: string) => Promise<void> | void;
+  onUpdateBudgetLimit: (communityId: string, limit: number) => Promise<void> | void;
 }
 
 type CoreContentModule = "feed" | "members";
@@ -119,7 +129,7 @@ interface FutureContentDefinition {
 }
 
 const CORE_CONTENT_MODULES: CoreContentModule[] = ["feed", "members"];
-const OPTIONAL_CONTENT_MODULES: OptionalContentModule[] = ["calendar", "commitments", "relationships", "albums", "1s"];
+const OPTIONAL_CONTENT_MODULES: OptionalContentModule[] = ["calendar", "commitments", "relationships", "albums", "1s", "budget"];
 
 const CORE_CONTENT_DEFINITIONS: ContentModuleDefinition[] = [
   {
@@ -173,18 +183,17 @@ const OPTIONAL_CONTENT_DEFINITIONS: ContentModuleDefinition[] = [
     label: "1s Vlog",
     eyebrow: "일상",
     description: "오늘의 1초 영상을 모아 하루를 남깁니다."
+  },
+  {
+    module: "budget",
+    icon: Wallet,
+    label: "가계부 & 정산",
+    eyebrow: "지출",
+    description: "공동 지출, 더치페이 정산, 월별 예산을 함께 관리합니다."
   }
 ];
 
-const FUTURE_CONTENT_DEFINITIONS: FutureContentDefinition[] = [
-  {
-    id: "budget",
-    icon: Wallet,
-    label: "가계부",
-    eyebrow: "준비 중",
-    description: "공동 지출, 정산, 월별 예산을 함께 관리합니다."
-  }
-];
+const FUTURE_CONTENT_DEFINITIONS: FutureContentDefinition[] = [];
 
 export function CommunityScreen({
   communities,
@@ -228,7 +237,10 @@ export function CommunityScreen({
   onOpenOneSecondUpload,
   onDeleteOneSecondLog,
   onAddMergedVlogToAlbum,
-  onNudgeMember
+  onNudgeMember,
+  onAddExpense,
+  onDeleteExpense,
+  onUpdateBudgetLimit
 }: CommunityScreenProps) {
   const [isContentManagerOpen, setIsContentManagerOpen] = useState(false);
   const [pendingContentModule, setPendingContentModule] = useState<OptionalContentModule | null>(null);
@@ -404,6 +416,15 @@ export function CommunityScreen({
             onAddMergedVlogToAlbum={(dateKey, videoFile) => onAddMergedVlogToAlbum(community.id, dateKey, videoFile)}
           />
         </Suspense>
+      ) : null}
+      {activeModuleIsAvailable && activeModule === "budget" ? (
+        <BudgetModule
+          community={community}
+          currentUserId={currentUserId}
+          onAddExpense={onAddExpense}
+          onDeleteExpense={onDeleteExpense}
+          onUpdateBudgetLimit={onUpdateBudgetLimit}
+        />
       ) : null}
       {!activeModuleIsAvailable && activeOptionalModule ? (
         <ContentUnavailablePanel
@@ -1210,6 +1231,8 @@ function getContentModuleCount(community: Community, module: CoreContentModule |
       return community.albums.length;
     case "1s":
       return community.oneSecondLogs.length;
+    case "budget":
+      return community.budget?.expenses.length || 0;
   }
 }
 
@@ -3130,4 +3153,477 @@ function createCommunityInviteUrl(inviteCode: string) {
   const url = new URL(window.location.origin);
   url.searchParams.set("invite", inviteCode);
   return url.toString();
+}
+
+interface BudgetModuleProps {
+  community: Community;
+  currentUserId: string;
+  onAddExpense: (communityId: string, input: { title: string; amount: number; category: "식비" | "쇼핑" | "문화" | "교통" | "기타"; paidByUserId: string; date: string }) => Promise<void> | void;
+  onDeleteExpense: (communityId: string, expenseId: string) => Promise<void> | void;
+  onUpdateBudgetLimit: (communityId: string, limit: number) => Promise<void> | void;
+}
+
+export function BudgetModule({
+  community,
+  currentUserId,
+  onAddExpense,
+  onDeleteExpense,
+  onUpdateBudgetLimit
+}: BudgetModuleProps) {
+  const [isEditingLimit, setIsEditingLimit] = useState(false);
+  const budget = community.budget || { monthlyLimit: 500000, expenses: [] };
+  const limit = budget.monthlyLimit;
+  const expenses = budget.expenses || [];
+  const [limitInput, setLimitInput] = useState(String(limit));
+
+  // Expense form state
+  const [expenseTitle, setExpenseTitle] = useState("");
+  const [expenseAmount, setExpenseAmount] = useState("");
+  const [expenseCategory, setExpenseCategory] = useState<"식비" | "쇼핑" | "문화" | "교통" | "기타">("식비");
+  const [expensePaidBy, setExpensePaidBy] = useState(currentUserId);
+  const [expenseDate, setExpenseDate] = useState(() => new Date().toISOString().substring(0, 10));
+
+  // Remittance animation overlay state
+  const [remitOverlay, setRemitOverlay] = useState<{
+    isOpen: boolean;
+    fromName: string;
+    toName: string;
+    amount: number;
+  } | null>(null);
+
+  const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
+  const percentage = limit > 0 ? (totalExpenses / limit) * 100 : 0;
+  const isOverBudget = totalExpenses > limit;
+
+  // Category Sums
+  const categorySums = {
+    식비: 0,
+    쇼핑: 0,
+    문화: 0,
+    교통: 0,
+    기타: 0
+  };
+  expenses.forEach(e => {
+    if (categorySums[e.category] !== undefined) {
+      categorySums[e.category] += e.amount;
+    } else {
+      categorySums["기타"] += e.amount;
+    }
+  });
+
+  const categoryMax = Math.max(...Object.values(categorySums), 1);
+
+  // Dutch Pay calculation (greedy bill-split)
+  const memberSpentMap: Record<string, number> = {};
+  community.members.forEach(m => { memberSpentMap[m.id] = 0; });
+  expenses.forEach(e => {
+    if (memberSpentMap[e.paidByUserId] !== undefined) {
+      memberSpentMap[e.paidByUserId] += e.amount;
+    }
+  });
+
+  const memberCount = community.members.length;
+  const sharePerPerson = memberCount > 0 ? totalExpenses / memberCount : 0;
+
+  const balances = community.members.map(member => ({
+    id: member.id,
+    name: member.name,
+    balance: (memberSpentMap[member.id] || 0) - sharePerPerson
+  }));
+
+  const debtors = balances.filter(b => b.balance < -0.1).sort((a, b) => a.balance - b.balance);
+  const creditors = balances.filter(b => b.balance > 0.1).sort((a, b) => b.balance - a.balance);
+
+  interface Transfer {
+    fromId: string;
+    fromName: string;
+    toId: string;
+    toName: string;
+    amount: number;
+  }
+  const transfers: Transfer[] = [];
+  const dList = debtors.map(d => ({ ...d }));
+  const cList = creditors.map(c => ({ ...c }));
+
+  let dIdx = 0;
+  let cIdx = 0;
+
+  while (dIdx < dList.length && cIdx < cList.length) {
+    const d = dList[dIdx];
+    const c = cList[cIdx];
+    const dOwes = -d.balance;
+    const cOwed = c.balance;
+    const amount = Math.min(dOwes, cOwed);
+
+    transfers.push({
+      fromId: d.id,
+      fromName: d.name,
+      toId: c.id,
+      toName: c.name,
+      amount: Math.round(amount)
+    });
+
+    d.balance += amount;
+    c.balance -= amount;
+
+    if (Math.abs(d.balance) < 0.1) dIdx++;
+    if (Math.abs(c.balance) < 0.1) cIdx++;
+  }
+
+  const handleUpdateLimitSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const numericLimit = Number(limitInput.replace(/[^0-9]/g, ""));
+    if (!isNaN(numericLimit) && numericLimit >= 0) {
+      onUpdateBudgetLimit(community.id, numericLimit);
+      setIsEditingLimit(false);
+    }
+  };
+
+  const handleAddExpenseSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const numericAmount = Number(expenseAmount.replace(/[^0-9]/g, ""));
+    if (!expenseTitle.trim()) return;
+    if (isNaN(numericAmount) || numericAmount <= 0) return;
+
+    onAddExpense(community.id, {
+      title: expenseTitle,
+      amount: numericAmount,
+      category: expenseCategory,
+      paidByUserId: expensePaidBy,
+      date: expenseDate
+    });
+
+    // Reset fields
+    setExpenseTitle("");
+    setExpenseAmount("");
+  };
+
+  const handleSimulateRemit = (transfer: Transfer) => {
+    // Play sounds & trigger confetti
+    playChimeSound();
+    triggerConfetti();
+
+    // Show remittance success overlay
+    setRemitOverlay({
+      isOpen: true,
+      fromName: transfer.fromName,
+      toName: transfer.toName,
+      amount: transfer.amount
+    });
+  };
+
+  return (
+    <div className="budget-module">
+      {/* Remittance Success Overlay */}
+      {remitOverlay?.isOpen && (
+        <div className="remit-overlay" onClick={() => setRemitOverlay(null)}>
+          <div className="remit-overlay-card" onClick={e => e.stopPropagation()}>
+            <div className="remit-success-icon">💸</div>
+            <h3>송금 완료!</h3>
+            <p className="remit-desc">
+              <strong>{remitOverlay.fromName}</strong>님이{" "}
+              <strong>{remitOverlay.toName}</strong>님에게<br />
+              <strong className="remit-amount">{remitOverlay.amount.toLocaleString()}원</strong>을<br />
+              성공적으로 송금했습니다.
+            </p>
+            <button type="button" className="primary-button remit-close-btn" onClick={() => setRemitOverlay(null)}>
+              확인
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Top Summary Dashboard */}
+      <div className="budget-dashboard-grid">
+        {/* Budget limit gauge card */}
+        <div className="budget-card budget-gauge-card">
+          <div className="budget-card-header">
+            <div className="budget-card-title">
+              <PiggyBank className="budget-title-icon" />
+              <span>이번 달 예산 지출</span>
+            </div>
+            {!isEditingLimit ? (
+              <button type="button" className="text-button budget-edit-btn" onClick={() => {
+                setLimitInput(String(limit));
+                setIsEditingLimit(true);
+              }}>
+                예산 수정
+              </button>
+            ) : null}
+          </div>
+
+          {isEditingLimit ? (
+            <form onSubmit={handleUpdateLimitSubmit} className="budget-limit-form">
+              <input
+                type="number"
+                value={limitInput}
+                onChange={e => setLimitInput(e.target.value)}
+                className="budget-input inline-input"
+                placeholder="목표 예산 입력"
+                autoFocus
+              />
+              <div className="budget-limit-form-actions">
+                <button type="submit" className="primary-button min-btn">저장</button>
+                <button type="button" className="text-button" onClick={() => setIsEditingLimit(false)}>취소</button>
+              </div>
+            </form>
+          ) : (
+            <div className="budget-gauge-info">
+              <div className="budget-gauge-numbers">
+                <strong className="budget-spent-total">{totalExpenses.toLocaleString()}원</strong>
+                <span className="budget-limit-total">/ {limit.toLocaleString()}원</span>
+              </div>
+              <div className="budget-gauge-progress-container">
+                <div 
+                  className={`budget-gauge-progress-bar ${isOverBudget ? "is-over" : ""}`}
+                  style={{ width: `${Math.min(percentage, 100)}%` }}
+                />
+              </div>
+              <div className="budget-gauge-footer">
+                <span className="budget-gauge-percent">{percentage.toFixed(1)}% 사용됨</span>
+                {isOverBudget && (
+                  <span className="budget-over-warning animate-pulse">
+                    <AlertTriangle className="warning-icon" /> 예산 초과!
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Dutch pay card */}
+        <div className="budget-card dutch-pay-card">
+          <div className="budget-card-header">
+            <div className="budget-card-title">
+              <Calculator className="budget-title-icon" />
+              <span>간편 정산기 (Dutch Pay)</span>
+            </div>
+          </div>
+          <div className="dutch-pay-body">
+            <div className="dutch-pay-summary-stats">
+              <div>
+                <span className="label">총 지출액</span>
+                <strong className="val">{totalExpenses.toLocaleString()}원</strong>
+              </div>
+              <div>
+                <span className="label">1인당 분담금</span>
+                <strong className="val">{Math.round(sharePerPerson).toLocaleString()}원</strong>
+              </div>
+            </div>
+
+            <div className="dutch-pay-transfers">
+              <h4 className="transfers-title">필요 송금 내역 ({transfers.length}건)</h4>
+              {transfers.length === 0 ? (
+                <p className="no-transfers">모든 정산이 완료되었습니다! 🎉</p>
+              ) : (
+                <ul className="transfer-list">
+                  {transfers.map((t, idx) => (
+                    <li key={idx} className="transfer-item">
+                      <div className="transfer-item-content">
+                        <span className="transfer-sender">{t.fromName}</span>
+                        <span className="transfer-arrow">➡️</span>
+                        <span className="transfer-receiver">{t.toName}</span>
+                        <strong className="transfer-amount">{t.amount.toLocaleString()}원</strong>
+                      </div>
+                      <button 
+                        type="button"
+                        className="primary-button remit-action-btn"
+                        onClick={() => handleSimulateRemit(t)}
+                      >
+                        송금하기
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Expense Logging & Category Analysis Row */}
+      <div className="budget-main-grid">
+        {/* Category Analysis report */}
+        <div className="budget-card category-report-card">
+          <div className="budget-card-header">
+            <div className="budget-card-title">
+              <TrendingUp className="budget-title-icon" />
+              <span>카테고리별 리포트</span>
+            </div>
+          </div>
+          <div className="category-report-body">
+            {(Object.keys(categorySums) as Array<keyof typeof categorySums>).map(cat => {
+              const val = categorySums[cat];
+              const pct = totalExpenses > 0 ? (val / totalExpenses) * 100 : 0;
+              const barWidth = Math.max((val / categoryMax) * 100, 0);
+              
+              let emoji = "☕";
+              let colorClass = "cat-etc";
+              if (cat === "식비") { emoji = "🍔"; colorClass = "cat-food"; }
+              else if (cat === "쇼핑") { emoji = "🛍️"; colorClass = "cat-shop"; }
+              else if (cat === "문화") { emoji = "🎬"; colorClass = "cat-culture"; }
+              else if (cat === "교통") { emoji = "🚗"; colorClass = "cat-traffic"; }
+
+              return (
+                <div key={cat} className="category-chart-row">
+                  <div className="category-chart-info">
+                    <span className="category-label">{emoji} {cat}</span>
+                    <span className="category-value">{val.toLocaleString()}원 ({pct.toFixed(0)}%)</span>
+                  </div>
+                  <div className="category-chart-bar-bg">
+                    <div className={`category-chart-bar-fill ${colorClass}`} style={{ width: `${barWidth}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Expense Add Form */}
+        <div className="budget-card add-expense-card">
+          <div className="budget-card-header">
+            <div className="budget-card-title">
+              <PlusCircle className="budget-title-icon" />
+              <span>지출 기록 추가</span>
+            </div>
+          </div>
+          <form onSubmit={handleAddExpenseSubmit} className="add-expense-form">
+            <div className="form-row">
+              <label>
+                <span className="form-label">지출 내용</span>
+                <input
+                  type="text"
+                  value={expenseTitle}
+                  onChange={e => setExpenseTitle(e.target.value)}
+                  placeholder="예: 마트 장보기"
+                  className="budget-input"
+                  required
+                />
+              </label>
+              <label>
+                <span className="form-label">지출 금액 (원)</span>
+                <input
+                  type="number"
+                  value={expenseAmount}
+                  onChange={e => setExpenseAmount(e.target.value)}
+                  placeholder="예: 25000"
+                  className="budget-input"
+                  required
+                />
+              </label>
+            </div>
+            
+            <div className="form-row">
+              <label>
+                <span className="form-label">카테고리</span>
+                <select
+                  value={expenseCategory}
+                  onChange={e => setExpenseCategory(e.target.value as any)}
+                  className="budget-input"
+                >
+                  <option value="식비">🍔 식비</option>
+                  <option value="쇼핑">🛍️ 쇼핑</option>
+                  <option value="문화">🎬 문화</option>
+                  <option value="교통">🚗 교통</option>
+                  <option value="기타">☕ 기타</option>
+                </select>
+              </label>
+              
+              <label>
+                <span className="form-label">결제한 사람</span>
+                <select
+                  value={expensePaidBy}
+                  onChange={e => setExpensePaidBy(e.target.value)}
+                  className="budget-input"
+                >
+                  {community.members.map(m => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div className="form-row">
+              <label>
+                <span className="form-label">날짜</span>
+                <input
+                  type="date"
+                  value={expenseDate}
+                  onChange={e => setExpenseDate(e.target.value)}
+                  className="budget-input"
+                  required
+                />
+              </label>
+            </div>
+
+            <button type="submit" className="primary-button submit-expense-btn">
+              기록 추가
+            </button>
+          </form>
+        </div>
+      </div>
+
+      {/* Expense History List */}
+      <div className="budget-card expense-list-card">
+        <div className="budget-card-header">
+          <div className="budget-card-title">
+            <Coins className="budget-title-icon" />
+            <span>최근 지출 내역 ({expenses.length}건)</span>
+          </div>
+        </div>
+        <div className="expense-list-body">
+          {expenses.length === 0 ? (
+            <p className="no-expenses">등록된 지출 내역이 없습니다. 지출을 추가해 보세요!</p>
+          ) : (
+            <div className="expense-history-table-wrapper">
+              <table className="expense-history-table">
+                <thead>
+                  <tr>
+                    <th>날짜</th>
+                    <th>분류</th>
+                    <th>지출 내용</th>
+                    <th>결제자</th>
+                    <th>금액</th>
+                    <th>삭제</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {expenses.map(exp => {
+                    const payer = community.members.find(m => m.id === exp.paidByUserId);
+                    const payerName = payer ? payer.name : "알 수 없음";
+                    
+                    let emoji = "☕";
+                    if (exp.category === "식비") emoji = "🍔";
+                    else if (exp.category === "쇼핑") emoji = "🛍️";
+                    else if (exp.category === "문화") emoji = "🎬";
+                    else if (exp.category === "교통") emoji = "🚗";
+
+                    return (
+                      <tr key={exp.id} className="expense-history-row">
+                        <td className="expense-col-date">{exp.date}</td>
+                        <td className="expense-col-cat"><span className="cat-badge">{emoji} {exp.category}</span></td>
+                        <td className="expense-col-title"><strong>{exp.title}</strong></td>
+                        <td className="expense-col-payer">{payerName}</td>
+                        <td className="expense-col-amount"><strong>{exp.amount.toLocaleString()}원</strong></td>
+                        <td className="expense-col-action">
+                          <button 
+                            type="button"
+                            className="row-icon-button danger"
+                            onClick={() => onDeleteExpense(community.id, exp.id)}
+                            title="지출 삭제"
+                          >
+                            <Trash2 aria-hidden="true" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }

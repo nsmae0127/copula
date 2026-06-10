@@ -11826,3 +11826,556 @@ body.dark-theme .settings-row-btn:hover {
     overflow: hidden;
   }
 }
+
+/* ==========================================
+   공동 가계부 & 간편 정산 (Budget & Dutch Pay)
+   ========================================== */
+
+.budget-module {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  padding: 4px 0 24px;
+  animation: fade-in var(--motion-normal) var(--ease-out);
+}
+
+.budget-dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .budget-dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.budget-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(223, 209, 220, 0.82);
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.85), rgba(255, 248, 250, 0.72));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 18px;
+  box-shadow: var(--shadow-card);
+  transition: transform var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out);
+}
+
+.budget-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(140, 116, 186, 0.08);
+}
+
+.budget-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.budget-card-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  font-size: 0.98rem;
+  font-weight: 900;
+}
+
+.budget-title-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--primary-ink);
+}
+
+.budget-edit-btn {
+  font-size: 0.76rem;
+  color: var(--primary-ink);
+  padding: 2px 6px;
+}
+
+.budget-limit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.budget-limit-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.min-btn {
+  min-height: 30px;
+  padding: 0 12px;
+  font-size: 0.76rem;
+}
+
+/* Gauge Info */
+.budget-gauge-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.budget-gauge-numbers {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.budget-spent-total {
+  font-size: 1.6rem;
+  font-weight: 950;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+
+.budget-limit-total {
+  font-size: 0.84rem;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.budget-gauge-progress-container {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(223, 209, 220, 0.45);
+  overflow: hidden;
+}
+
+.budget-gauge-progress-bar {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--brand-pink), #a78bfa);
+  transition: width var(--motion-normal) var(--ease-out);
+}
+
+.budget-gauge-progress-bar.is-over {
+  background: linear-gradient(90deg, var(--brand-coral), #f87171);
+}
+
+.budget-gauge-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.76rem;
+}
+
+.budget-gauge-percent {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.budget-over-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--brand-coral-ink);
+  font-weight: 900;
+  background: rgba(240, 113, 122, 0.12);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.warning-icon {
+  width: 13px;
+  height: 13px;
+}
+
+/* Dutch Pay */
+.dutch-pay-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dutch-pay-summary-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  border-bottom: 1px solid rgba(223, 209, 220, 0.5);
+  padding-bottom: 12px;
+}
+
+.dutch-pay-summary-stats .label {
+  display: block;
+  font-size: 0.68rem;
+  color: var(--muted);
+  font-weight: 800;
+  margin-bottom: 2px;
+}
+
+.dutch-pay-summary-stats .val {
+  font-size: 1.15rem;
+  font-weight: 950;
+  color: var(--ink);
+}
+
+.dutch-pay-transfers {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.transfers-title {
+  margin: 0 0 4px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-weight: 850;
+}
+
+.no-transfers {
+  margin: 12px 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.transfer-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.transfer-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(223, 209, 220, 0.5);
+  border-radius: 8px;
+  padding: 8px 10px;
+  transition: background var(--motion-fast) var(--ease-out);
+}
+
+.transfer-item:hover {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.transfer-item-content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.transfer-sender {
+  font-weight: 900;
+  color: var(--primary-ink);
+}
+
+.transfer-arrow {
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.transfer-receiver {
+  font-weight: 900;
+}
+
+.transfer-amount {
+  margin-left: 4px;
+  font-weight: 950;
+  color: var(--ink);
+}
+
+.remit-action-btn {
+  min-height: 28px;
+  padding: 0 10px;
+  font-size: 0.74rem;
+  border-radius: 6px;
+}
+
+/* Category report & Expense Form layout */
+.budget-main-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .budget-main-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.category-report-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.category-chart-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.category-chart-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.category-label {
+  color: var(--ink);
+}
+
+.category-value {
+  color: var(--muted);
+}
+
+.category-chart-bar-bg {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(223, 209, 220, 0.4);
+  overflow: hidden;
+}
+
+.category-chart-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width var(--motion-normal) var(--ease-out);
+}
+
+.cat-food { background: linear-gradient(90deg, #f0717a, #fda4af); }
+.cat-shop { background: linear-gradient(90deg, #8c74ba, #c084fc); }
+.cat-culture { background: linear-gradient(90deg, #60a5fa, #93c5fd); }
+.cat-traffic { background: linear-gradient(90deg, #6fb7a5, #a7f3d0); }
+.cat-etc { background: linear-gradient(90deg, #f59e0b, #fde047); }
+
+/* Expense Logging Form */
+.add-expense-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 480px) {
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}
+
+.add-expense-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-label {
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-weight: 850;
+  margin-left: 2px;
+}
+
+.budget-input {
+  min-height: 36px;
+  border: 1px solid rgba(223, 209, 220, 0.85);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 0 10px;
+  color: var(--ink);
+  font-size: 0.84rem;
+  font-weight: 800;
+  transition: border-color var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out);
+}
+
+.budget-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  background: white;
+}
+
+.inline-input {
+  min-height: 32px;
+  font-size: 0.9rem;
+}
+
+.submit-expense-btn {
+  margin-top: 6px;
+  min-height: 36px;
+  width: 100%;
+}
+
+/* Expense History table */
+.expense-list-card {
+  margin-top: 4px;
+}
+
+.no-expenses {
+  margin: 24px 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.expense-history-table-wrapper {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid rgba(223, 209, 220, 0.5);
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.expense-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.82rem;
+}
+
+.expense-history-table th,
+.expense-history-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(223, 209, 220, 0.4);
+}
+
+.expense-history-table th {
+  background: rgba(223, 209, 220, 0.25);
+  color: var(--muted);
+  font-weight: 850;
+  font-size: 0.74rem;
+}
+
+.expense-history-row {
+  transition: background var(--motion-fast) var(--ease-out);
+}
+
+.expense-history-row:hover {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.expense-col-date {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.cat-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(223, 209, 220, 0.6);
+  font-size: 0.74rem;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.expense-col-title {
+  color: var(--ink);
+}
+
+.expense-col-payer {
+  font-weight: 800;
+}
+
+.expense-col-amount {
+  font-weight: 950;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.expense-col-action {
+  width: 40px;
+  text-align: center;
+}
+
+/* Remittance Overlay */
+.remit-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 20px;
+  animation: fade-in var(--motion-fast) var(--ease-out);
+}
+
+.remit-overlay-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  width: 100%;
+  max-width: 320px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(255, 248, 250, 0.85));
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  animation: scale-up var(--motion-normal) var(--ease-out);
+}
+
+.remit-success-icon {
+  font-size: 3rem;
+  margin-bottom: 12px;
+  animation: bounce var(--motion-normal) infinite;
+}
+
+.remit-overlay-card h3 {
+  margin: 0 0 10px;
+  font-size: 1.25rem;
+  font-weight: 950;
+  color: var(--ink);
+}
+
+.remit-desc {
+  font-size: 0.86rem;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0 0 20px;
+}
+
+.remit-amount {
+  font-size: 1.15rem;
+  color: var(--primary-ink);
+  font-weight: 950;
+}
+
+.remit-close-btn {
+  min-height: 38px;
+  width: 100%;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scale-up {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+

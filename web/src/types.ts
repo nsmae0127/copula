@@ -8,7 +8,8 @@ export type CommunityModule =
   | "relationships"
   | "albums"
   | "members"
-  | "1s";
+  | "1s"
+  | "budget";
 export type ModalType =
   | "join"
   | "community"
@@ -194,6 +195,7 @@ export interface Community {
   commitments: Commitment[];
   oneSecondLogs: OneSecondLog[];
   messages: CommunityMessage[];
+  budget?: BudgetConfig;
 }
 
 export interface CopulaNotification {
@@ -218,3 +220,18 @@ export type JoinResult =
   | { status: "alreadyJoined"; communityName: string }
   | { status: "invalidCode" }
   | { status: "needsSignIn" };
+
+export interface ExpenseItem {
+  id: string;
+  title: string;
+  amount: number;
+  category: "식비" | "쇼핑" | "문화" | "교통" | "기타";
+  paidByUserId: string;
+  date: string;
+  createdAt: string;
+}
+
+export interface BudgetConfig {
+  monthlyLimit: number;
+  expenses: ExpenseItem[];
+}

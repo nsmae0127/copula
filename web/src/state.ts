@@ -26,7 +26,7 @@ import { createId, initials, makeInviteCode, memberFromUser } from "./utils";
 const accentColors = ["#F0717A", "#8C74BA", "#F6A8BE", "#FFD6C7", "#6FB7A5"];
 const repository = getCopulaRepository();
 const DAY_MS = 86_400_000;
-const STORED_COMMUNITY_CONTENT_MODULES: CommunityModule[] = ["calendar", "commitments", "relationships", "albums", "1s"];
+const STORED_COMMUNITY_CONTENT_MODULES: CommunityModule[] = ["calendar", "commitments", "relationships", "albums", "1s", "budget"];
 
 function createNotification(
   kind: NotificationKind,
@@ -105,6 +105,17 @@ function normalizeCommunity(community: Community): Community {
     visibility: commitment.visibility || { type: "community" }
   }));
 
+  const budgetKey = `copula-budget-${community.id}`;
+  let budget = { monthlyLimit: 500000, expenses: [] };
+  try {
+    const saved = localStorage.getItem(budgetKey);
+    if (saved) {
+      budget = JSON.parse(saved);
+    }
+  } catch (e) {
+    console.error("Failed to load budget", e);
+  }
+
   return {
     ...community,
     contentModules: normalizeCommunityContentModules(persisted.contentModules),
@@ -116,7 +127,8 @@ function normalizeCommunity(community: Community): Community {
     circles: Array.isArray(persisted.circles) ? persisted.circles : [],
     commitments,
     messages: Array.isArray(persisted.messages) ? persisted.messages : [],
-    oneSecondLogs: Array.isArray(persisted.oneSecondLogs) ? persisted.oneSecondLogs : []
+    oneSecondLogs: Array.isArray(persisted.oneSecondLogs) ? persisted.oneSecondLogs : [],
+    budget
   };
 }
 
@@ -1955,6 +1967,72 @@ export function useCopulaStore() {
     );
   }
 
+  function addExpense(communityId: string, input: { title: string; amount: number; category: any; paidByUserId: string; date: string }) {
+    const newExpense = {
+      id: createId("expense"),
+      title: input.title,
+      amount: input.amount,
+      category: input.category,
+      paidByUserId: input.paidByUserId,
+      date: input.date,
+      createdAt: new Date().toISOString()
+    };
+
+    setState((previous) => {
+      const nextState = updateCommunity(previous, communityId, (community) => {
+        const currentBudget = community.budget || { monthlyLimit: 500000, expenses: [] };
+        const nextExpenses = [newExpense, ...currentBudget.expenses];
+        const nextBudget = {
+          ...currentBudget,
+          expenses: nextExpenses
+        };
+        localStorage.setItem(`copula-budget-${communityId}`, JSON.stringify(nextBudget));
+        return {
+          ...community,
+          budget: nextBudget
+        };
+      });
+      return nextState;
+    });
+  }
+
+  function deleteExpense(communityId: string, expenseId: string) {
+    setState((previous) => {
+      const nextState = updateCommunity(previous, communityId, (community) => {
+        const currentBudget = community.budget || { monthlyLimit: 500000, expenses: [] };
+        const nextExpenses = currentBudget.expenses.filter((e) => e.id !== expenseId);
+        const nextBudget = {
+          ...currentBudget,
+          expenses: nextExpenses
+        };
+        localStorage.setItem(`copula-budget-${communityId}`, JSON.stringify(nextBudget));
+        return {
+          ...community,
+          budget: nextBudget
+        };
+      });
+      return nextState;
+    });
+  }
+
+  function updateBudgetLimit(communityId: string, limit: number) {
+    setState((previous) => {
+      const nextState = updateCommunity(previous, communityId, (community) => {
+        const currentBudget = community.budget || { monthlyLimit: 500000, expenses: [] };
+        const nextBudget = {
+          ...currentBudget,
+          monthlyLimit: limit
+        };
+        localStorage.setItem(`copula-budget-${communityId}`, JSON.stringify(nextBudget));
+        return {
+          ...community,
+          budget: nextBudget
+        };
+      });
+      return nextState;
+    });
+  }
+
   return {
     state,
     selectedCommunity,
@@ -2008,7 +2086,10 @@ export function useCopulaStore() {
       sendMessage,
       toggleMessageReaction,
       addOneSecondLog,
-      deleteOneSecondLog
+      deleteOneSecondLog,
+      addExpense,
+      deleteExpense,
+      updateBudgetLimit
     }
   };
 }

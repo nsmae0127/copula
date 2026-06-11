@@ -821,6 +821,17 @@ export function App() {
             await actions.updateBudgetLimit(communityId, limit);
             showToast("예산 제한을 수정했습니다.");
           }}
+          onAddPlace={async (communityId, input) => {
+            await actions.addPlace(communityId, input);
+            showToast("맛집을 저장했습니다. 📍");
+          }}
+          onDeletePlace={async (communityId, placeId) => {
+            await actions.deletePlace(communityId, placeId);
+            showToast("맛집을 삭제했습니다.");
+          }}
+          onTogglePlaceVisited={async (communityId, placeId) => {
+            await actions.togglePlaceVisited(communityId, placeId);
+          }}
           onAddMergedVlogToAlbum={async (communityId, dateKey, videoFile) => {
             const community = state.communities.find(c => c.id === communityId);
             if (!community) return;

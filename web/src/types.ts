@@ -9,7 +9,8 @@ export type CommunityModule =
   | "albums"
   | "members"
   | "1s"
-  | "budget";
+  | "budget"
+  | "places";
 export type ModalType =
   | "join"
   | "community"
@@ -196,6 +197,7 @@ export interface Community {
   oneSecondLogs: OneSecondLog[];
   messages: CommunityMessage[];
   budget?: BudgetConfig;
+  places?: PlaceItem[];
 }
 
 export interface CopulaNotification {
@@ -234,4 +236,18 @@ export interface ExpenseItem {
 export interface BudgetConfig {
   monthlyLimit: number;
   expenses: ExpenseItem[];
+}
+
+export interface PlaceItem {
+  id: string;
+  name: string;
+  description?: string;
+  lat: number;
+  lng: number;
+  category: "cafe" | "restaurant" | "bar" | "sightseeing" | "etc";
+  visited: boolean;
+  rating?: number;
+  notes?: string;
+  createdBy: string;
+  createdAt: string;
 }

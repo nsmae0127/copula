@@ -18,7 +18,9 @@ import type {
   PushSubscriptionPayload,
   RelationshipPair,
   Role,
-  OneSecondLog
+  OneSecondLog,
+  ExpenseItem,
+  PlaceItem
 } from "../types";
 
 export type DataBackend = "local" | "supabase";
@@ -132,4 +134,10 @@ export interface CopulaRepository {
   markNotificationRead?(notificationId: string): Promise<void>;
   markNotificationsRead?(): Promise<void>;
   savePushSubscription?(subscription: PushSubscriptionPayload): Promise<void>;
+  addExpense?(communityId: string, expense: Omit<ExpenseItem, "id" | "createdAt" | "paidByUserId">): Promise<ExpenseItem>;
+  deleteExpense?(communityId: string, expenseId: string): Promise<void>;
+  updateBudgetLimit?(communityId: string, limit: number): Promise<number>;
+  addPlace?(communityId: string, place: Omit<PlaceItem, "id" | "createdAt" | "createdBy">): Promise<PlaceItem>;
+  deletePlace?(communityId: string, placeId: string): Promise<void>;
+  togglePlaceVisited?(communityId: string, placeId: string): Promise<PlaceItem>;
 }

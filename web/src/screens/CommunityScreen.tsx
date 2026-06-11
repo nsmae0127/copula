@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useState, type CSSProperties, type FormEvent } from "react";
+import { lazy, Suspense, useMemo, useState, useEffect, useRef, type CSSProperties, type FormEvent } from "react";
 import {
   CalendarDays,
   CheckCircle2,
@@ -33,10 +33,12 @@ import {
   Calculator,
   Send,
   AlertTriangle,
-  PlusCircle
+  PlusCircle,
+  MapPin,
+  Star
 } from "lucide-react";
 import { getKoreanHoliday } from "../holidays";
-import type { Album, CalendarEvent, Community, CommunityModule, CopulaNotification, Role, VisibilityScope, OneSecondLog } from "../types";
+import type { Album, CalendarEvent, Community, CommunityModule, CopulaNotification, Role, VisibilityScope, OneSecondLog, PlaceItem } from "../types";
 import { OneSecondPlayerOverlay } from "../components/OneSecondPlayerOverlay";
 import { ddayLabel, ddaySortValue, formatDateTime, getAlbumCoverItem, getLatestAlbumItem, roleLabel, triggerConfetti } from "../utils";
 import { playChimeSound } from "../utils/soundEffects";
@@ -53,6 +55,12 @@ import {
 const OneSecondModule = lazy(() =>
   import("./OneSecondModule").then((module) => ({ default: module.OneSecondModule }))
 );
+
+declare global {
+  interface Window {
+    naver?: any;
+  }
+}
 
 interface CommunityScreenProps {
   communities: Community[];
@@ -106,6 +114,19 @@ interface CommunityScreenProps {
   onAddExpense: (communityId: string, input: { title: string; amount: number; category: any; paidByUserId: string; date: string }) => Promise<void> | void;
   onDeleteExpense: (communityId: string, expenseId: string) => Promise<void> | void;
   onUpdateBudgetLimit: (communityId: string, limit: number) => Promise<void> | void;
+  onAddPlace: (
+    communityId: string,
+    input: {
+      name: string;
+      description?: string;
+      lat: number;
+      lng: number;
+      category: "cafe" | "restaurant" | "bar" | "sightseeing" | "etc";
+      notes?: string;
+    }
+  ) => Promise<void> | void;
+  onDeletePlace: (communityId: string, placeId: string) => Promise<void> | void;
+  onTogglePlaceVisited: (communityId: string, placeId: string) => Promise<void> | void;
 }
 
 type CoreContentModule = "feed" | "members";
@@ -129,7 +150,7 @@ interface FutureContentDefinition {
 }
 
 const CORE_CONTENT_MODULES: CoreContentModule[] = ["feed", "members"];
-const OPTIONAL_CONTENT_MODULES: OptionalContentModule[] = ["calendar", "commitments", "relationships", "albums", "1s", "budget"];
+const OPTIONAL_CONTENT_MODULES: OptionalContentModule[] = ["calendar", "commitments", "relationships", "albums", "1s", "budget", "places"];
 
 const CORE_CONTENT_DEFINITIONS: ContentModuleDefinition[] = [
   {
@@ -190,6 +211,13 @@ const OPTIONAL_CONTENT_DEFINITIONS: ContentModuleDefinition[] = [
     label: "가계부 & 정산",
     eyebrow: "지출",
     description: "공동 지출, 더치페이 정산, 월별 예산을 함께 관리합니다."
+  },
+  {
+    module: "places",
+    icon: MapPin,
+    label: "플레이스 지도",
+    eyebrow: "장소",
+    description: "네이버 지도로 맛집과 가고 싶은 장소를 저장하고 공유합니다."
   }
 ];
 
@@ -240,7 +268,10 @@ export function CommunityScreen({
   onNudgeMember,
   onAddExpense,
   onDeleteExpense,
-  onUpdateBudgetLimit
+  onUpdateBudgetLimit,
+  onAddPlace,
+  onDeletePlace,
+  onTogglePlaceVisited
 }: CommunityScreenProps) {
   const [isContentManagerOpen, setIsContentManagerOpen] = useState(false);
   const [pendingContentModule, setPendingContentModule] = useState<OptionalContentModule | null>(null);
@@ -424,6 +455,15 @@ export function CommunityScreen({
           onAddExpense={onAddExpense}
           onDeleteExpense={onDeleteExpense}
           onUpdateBudgetLimit={onUpdateBudgetLimit}
+        />
+      ) : null}
+      {activeModuleIsAvailable && activeModule === "places" ? (
+        <PlacesModule
+          community={community}
+          currentUserId={currentUserId}
+          onAddPlace={onAddPlace}
+          onDeletePlace={onDeletePlace}
+          onTogglePlaceVisited={onTogglePlaceVisited}
         />
       ) : null}
       {!activeModuleIsAvailable && activeOptionalModule ? (
@@ -1212,6 +1252,10 @@ function hasExistingContent(community: Community, module: OptionalContentModule)
       return community.albums.length > 0;
     case "1s":
       return community.oneSecondLogs.length > 0;
+    case "budget":
+      return (community.budget?.expenses.length ?? 0) > 0;
+    case "places":
+      return (community.places?.length ?? 0) > 0;
   }
 }
 
@@ -1233,6 +1277,8 @@ function getContentModuleCount(community: Community, module: CoreContentModule |
       return community.oneSecondLogs.length;
     case "budget":
       return community.budget?.expenses.length || 0;
+    case "places":
+      return community.places?.length || 0;
   }
 }
 
@@ -3628,4 +3674,524 @@ export function BudgetModule({
       </div>
     </div>
   );
+}
+
+export function PlacesModule({
+  community,
+  currentUserId,
+  onAddPlace,
+  onDeletePlace,
+  onTogglePlaceVisited
+}: {
+  community: Community;
+  currentUserId: string;
+  onAddPlace: (communityId: string, input: any) => Promise<void> | void;
+  onDeletePlace: (communityId: string, placeId: string) => Promise<void> | void;
+  onTogglePlaceVisited: (communityId: string, placeId: string) => Promise<void> | void;
+}) {
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const [mapError, setMapError] = useState(false);
+  const [filterVisited, setFilterVisited] = useState<"all" | "wish" | "visited">("all");
+  const [filterCategory, setFilterCategory] = useState<string>("all");
+  
+  // Form state
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [category, setCategory] = useState<"cafe" | "restaurant" | "bar" | "sightseeing" | "etc">("restaurant");
+  const [lat, setLat] = useState<number | null>(null);
+  const [lng, setLng] = useState<number | null>(null);
+  const [notes, setNotes] = useState("");
+  
+  const [searchQuery, setSearchQuery] = useState("");
+  
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<any>(null);
+  const markersRef = useRef<any[]>([]);
+  const clickMarkerRef = useRef<any>(null);
+
+  const places = useMemo(() => {
+    return community.places || [];
+  }, [community.places]);
+
+  const filteredPlaces = useMemo(() => {
+    return places.filter(place => {
+      const matchVisited = 
+        filterVisited === "all" ||
+        (filterVisited === "visited" && place.visited) ||
+        (filterVisited === "wish" && !place.visited);
+      const matchCategory = filterCategory === "all" || place.category === filterCategory;
+      return matchVisited && matchCategory;
+    });
+  }, [places, filterVisited, filterCategory]);
+
+  // Load Naver Map SDK
+  useEffect(() => {
+    if (window.naver && window.naver.maps) {
+      setMapLoaded(true);
+      return;
+    }
+
+    const scriptId = "naver-map-sdk-script";
+    let script = document.getElementById(scriptId) as HTMLScriptElement;
+    if (!script) {
+      script = document.createElement("script");
+      script.id = scriptId;
+      script.src = "https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=dms0s09q2u&submodules=geocoder";
+      script.async = true;
+      document.head.appendChild(script);
+    }
+
+    const onLoad = () => setMapLoaded(true);
+    const onError = () => setMapError(true);
+
+    script.addEventListener("load", onLoad);
+    script.addEventListener("error", onError);
+
+    return () => {
+      script.removeEventListener("load", onLoad);
+      script.removeEventListener("error", onError);
+    };
+  }, []);
+
+  // Initialize Map
+  useEffect(() => {
+    if (!mapLoaded || !mapContainerRef.current || !window.naver?.maps) return;
+
+    // Default center on Seoul or first place
+    let centerLat = 37.5665;
+    let centerLng = 126.9780;
+    if (places.length > 0) {
+      centerLat = places[0].lat;
+      centerLng = places[0].lng;
+    }
+
+    const mapOptions = {
+      center: new window.naver.maps.LatLng(centerLat, centerLng),
+      zoom: 14,
+      zoomControl: true,
+      zoomControlOptions: {
+        position: window.naver.maps.Position.TOP_RIGHT
+      }
+    };
+
+    const map = new window.naver.maps.Map(mapContainerRef.current, mapOptions);
+    mapRef.current = map;
+
+    // Map Click Listener (to select coordinate)
+    window.naver.maps.Event.addListener(map, "click", (e: any) => {
+      const coord = e.coord;
+      setLat(coord.lat());
+      setLng(coord.lng());
+
+      // Show temporary marker on click location
+      if (clickMarkerRef.current) {
+        clickMarkerRef.current.setMap(null);
+      }
+
+      clickMarkerRef.current = new window.naver.maps.Marker({
+        position: coord,
+        map: map,
+        icon: {
+          content: `<div class="click-map-marker">📍</div>`,
+          anchor: new window.naver.maps.Point(12, 12)
+        }
+      });
+    });
+
+    return () => {
+      if (clickMarkerRef.current) {
+        clickMarkerRef.current.setMap(null);
+      }
+      mapRef.current = null;
+    };
+  }, [mapLoaded]);
+
+  // Update Markers
+  useEffect(() => {
+    if (!mapRef.current || !window.naver?.maps) return;
+
+    // Clear old markers
+    markersRef.current.forEach(marker => marker.setMap(null));
+    markersRef.current = [];
+
+    filteredPlaces.forEach(place => {
+      const isVisitedClass = place.visited ? "visited" : "";
+      const marker = new window.naver.maps.Marker({
+        position: new window.naver.maps.LatLng(place.lat, place.lng),
+        map: mapRef.current,
+        icon: {
+          content: `<div class="custom-map-marker ${place.category} ${isVisitedClass}">
+                      <div class="marker-pin-inner">
+                        ${getCategoryEmoji(place.category)}
+                      </div>
+                    </div>`,
+          anchor: new window.naver.maps.Point(18, 36)
+        }
+      });
+
+      // Info Window
+      const infoWindow = new window.naver.maps.InfoWindow({
+        content: `
+          <div class="map-info-window">
+            <h4 class="info-title">${place.name}</h4>
+            ${place.description ? `<p class="info-desc">${place.description}</p>` : ""}
+            ${place.notes ? `<p class="info-notes">📝 ${place.notes}</p>` : ""}
+            <div class="info-footer">
+              <span class="info-badge ${place.category}">${getCategoryLabel(place.category)}</span>
+              <span class="info-status">${place.visited ? "✅ 다녀옴" : "⭐️ 위시"}</span>
+            </div>
+          </div>
+        `,
+        borderWidth: 0,
+        backgroundColor: "transparent",
+        disableAnchor: true
+      });
+
+      window.naver.maps.Event.addListener(marker, "click", () => {
+        infoWindow.open(mapRef.current, marker);
+      });
+
+      markersRef.current.push(marker);
+    });
+  }, [filteredPlaces, mapLoaded]);
+
+  const handleSearch = (e: FormEvent) => {
+    e.preventDefault();
+    if (!searchQuery.trim() || !window.naver?.maps?.Service) return;
+
+    window.naver.maps.Service.geocode({
+      query: searchQuery
+    }, (status: any, response: any) => {
+      if (status !== window.naver.maps.Service.Status.OK) {
+        alert("검색 결과가 없습니다.");
+        return;
+      }
+      const item = response.v2.addresses[0];
+      const latVal = parseFloat(item.y);
+      const lngVal = parseFloat(item.x);
+
+      setLat(latVal);
+      setLng(lngVal);
+      if (mapRef.current) {
+        mapRef.current.setCenter(new window.naver.maps.LatLng(latVal, lngVal));
+        mapRef.current.setZoom(16);
+      }
+    });
+  };
+
+  const handleAdd = (e: FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    
+    // Default to Seoul if no coordinates selected
+    const finalLat = lat !== null ? lat : 37.5665;
+    const finalLng = lng !== null ? lng : 126.9780;
+
+    onAddPlace(community.id, {
+      name: name.trim(),
+      description: description.trim() || undefined,
+      lat: finalLat,
+      lng: finalLng,
+      category,
+      visited: false,
+      notes: notes.trim() || undefined
+    });
+
+    setName("");
+    setDescription("");
+    setNotes("");
+    setLat(null);
+    setLng(null);
+    if (clickMarkerRef.current) {
+      clickMarkerRef.current.setMap(null);
+      clickMarkerRef.current = null;
+    }
+  };
+
+  const panToPlace = (place: PlaceItem) => {
+    if (mapRef.current && window.naver?.maps) {
+      mapRef.current.setCenter(new window.naver.maps.LatLng(place.lat, place.lng));
+      mapRef.current.setZoom(16);
+      
+      // Find corresponding marker and trigger click to open info window
+      const index = filteredPlaces.findIndex(p => p.id === place.id);
+      if (index !== -1 && markersRef.current[index]) {
+        window.naver.maps.Event.trigger(markersRef.current[index], "click");
+      }
+    }
+  };
+
+  return (
+    <div className="places-module">
+      {/* Filters bar */}
+      <div className="places-filters-card">
+        <div className="visited-filters">
+          <button 
+            type="button" 
+            className={`filter-tab-btn ${filterVisited === "all" ? "active" : ""}`}
+            onClick={() => setFilterVisited("all")}
+          >
+            전체 ({places.length})
+          </button>
+          <button 
+            type="button" 
+            className={`filter-tab-btn ${filterVisited === "wish" ? "active" : ""}`}
+            onClick={() => setFilterVisited("wish")}
+          >
+            ⭐️ 위시리스트 ({places.filter(p => !p.visited).length})
+          </button>
+          <button 
+            type="button" 
+            className={`filter-tab-btn ${filterVisited === "visited" ? "active" : ""}`}
+            onClick={() => setFilterVisited("visited")}
+          >
+            ✅ 다녀온 곳 ({places.filter(p => p.visited).length})
+          </button>
+        </div>
+        
+        <div className="category-filters">
+          <button 
+            type="button" 
+            className={`filter-badge-btn ${filterCategory === "all" ? "active" : ""}`}
+            onClick={() => setFilterCategory("all")}
+          >
+            전체
+          </button>
+          <button 
+            type="button" 
+            className={`filter-badge-btn cafe ${filterCategory === "cafe" ? "active" : ""}`}
+            onClick={() => setFilterCategory("cafe")}
+          >
+            ☕ 카페
+          </button>
+          <button 
+            type="button" 
+            className={`filter-badge-btn restaurant ${filterCategory === "restaurant" ? "active" : ""}`}
+            onClick={() => setFilterCategory("restaurant")}
+          >
+            🍔 맛집
+          </button>
+          <button 
+            type="button" 
+            className={`filter-badge-btn bar ${filterCategory === "bar" ? "active" : ""}`}
+            onClick={() => setFilterCategory("bar")}
+          >
+            🍺 술집
+          </button>
+          <button 
+            type="button" 
+            className={`filter-badge-btn sightseeing ${filterCategory === "sightseeing" ? "active" : ""}`}
+            onClick={() => setFilterCategory("sightseeing")}
+          >
+            🎡 명소
+          </button>
+          <button 
+            type="button" 
+            className={`filter-badge-btn etc ${filterCategory === "etc" ? "active" : ""}`}
+            onClick={() => setFilterCategory("etc")}
+          >
+            📍 기타
+          </button>
+        </div>
+      </div>
+
+      <div className="places-dashboard-grid">
+        {/* Left column: Naver Map */}
+        <div className="places-map-wrapper">
+          <div className="map-search-bar">
+            <form onSubmit={handleSearch} className="map-search-form">
+              <input
+                type="text"
+                placeholder="주소 또는 장소 검색 (예: 성수동 카페)"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="map-search-input"
+              />
+              <button type="submit" className="map-search-btn">검색</button>
+            </form>
+          </div>
+          
+          <div 
+            ref={mapContainerRef} 
+            className="naver-map-container"
+          >
+            {!mapLoaded && !mapError && (
+              <div className="map-placeholder">
+                <RefreshCw className="animate-spin" />
+                <p>네이버 지도를 불러오는 중...</p>
+              </div>
+            )}
+            {mapError && (
+              <div className="map-placeholder error">
+                <AlertTriangle />
+                <p>지도를 불러오지 못했습니다. 네트워크나 Client ID 설정을 확인해 주세요.</p>
+              </div>
+            )}
+          </div>
+          <div className="map-helper-text">
+            💡 지도를 클릭하면 해당 위치의 좌표가 입력되어 새로운 맛집을 간편하게 등록할 수 있습니다.
+          </div>
+        </div>
+
+        {/* Right column: Form & List */}
+        <div className="places-sidebar">
+          {/* Add Place Card */}
+          <div className="places-card">
+            <div className="places-card-header">
+              <h4>📍 새 플레이스 등록</h4>
+            </div>
+            <form onSubmit={handleAdd} className="add-place-form">
+              <div className="form-row">
+                <label>
+                  <span className="form-label">장소 이름 *</span>
+                  <input
+                    type="text"
+                    required
+                    placeholder="예: 블루보틀 성수"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="budget-input"
+                  />
+                </label>
+                <label>
+                  <span className="form-label">분류</span>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value as any)}
+                    className="budget-input"
+                  >
+                    <option value="restaurant">🍔 맛집</option>
+                    <option value="cafe">☕ 카페</option>
+                    <option value="bar">🍺 술집</option>
+                    <option value="sightseeing">🎡 명소</option>
+                    <option value="etc">📍 기타</option>
+                  </select>
+                </label>
+              </div>
+
+              <label>
+                <span className="form-label">한줄 설명</span>
+                <input
+                  type="text"
+                  placeholder="예: 핸드드립이 맛있는 성수동 핫플"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="budget-input"
+                />
+              </label>
+
+              <label>
+                <span className="form-label">메모 / 특징</span>
+                <textarea
+                  placeholder="예: 주말 대기 30분 정도, 주차 불가"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="budget-input text-area"
+                  rows={2}
+                />
+              </label>
+
+              <div className="coordinates-display">
+                {lat !== null && lng !== null ? (
+                  <span className="coord-badge success">
+                    📍 선택된 위치: {lat.toFixed(4)}, {lng.toFixed(4)}
+                  </span>
+                ) : (
+                  <span className="coord-badge info">
+                    지도에서 장소를 직접 클릭하여 마킹할 수 있습니다.
+                  </span>
+                )}
+              </div>
+
+              <button type="submit" className="primary-button submit-place-btn">
+                저장하기
+              </button>
+            </form>
+          </div>
+
+          {/* Place List */}
+          <div className="places-list-container">
+            <div className="places-list-header">
+              <span>저장된 장소 ({filteredPlaces.length}개)</span>
+            </div>
+            
+            {filteredPlaces.length === 0 ? (
+              <div className="no-places">
+                <p>저장된 장소가 없습니다. 지도에서 클릭해 추가해보세요!</p>
+              </div>
+            ) : (
+              <div className="places-scroll-list">
+                {filteredPlaces.map(place => {
+                  const creator = community.members.find(m => m.userId === place.createdBy);
+                  const creatorInitials = creator ? creator.initials : "M";
+
+                  return (
+                    <div key={place.id} className={`place-item-card ${place.visited ? "visited" : ""}`}>
+                      <div className="place-item-body">
+                        <div className="place-item-header">
+                          <span className={`place-category-badge ${place.category}`}>
+                            {getCategoryEmoji(place.category)} {getCategoryLabel(place.category)}
+                          </span>
+                          <span className="creator-initials-badge" title="등록자">
+                            {creatorInitials}
+                          </span>
+                        </div>
+                        <h4 className="place-item-name">{place.name}</h4>
+                        {place.description && <p className="place-item-desc">{place.description}</p>}
+                        {place.notes && <p className="place-item-notes">📝 {place.notes}</p>}
+                      </div>
+                      
+                      <div className="place-item-actions">
+                        <button
+                          type="button"
+                          className="place-action-btn map-view-btn"
+                          onClick={() => panToPlace(place)}
+                        >
+                          🗺️ 지도에서 보기
+                        </button>
+                        <button
+                          type="button"
+                          className={`place-action-btn visit-toggle-btn ${place.visited ? "visited" : ""}`}
+                          onClick={() => onTogglePlaceVisited(community.id, place.id)}
+                        >
+                          {place.visited ? "✅ 다녀옴" : "⭐️ 가고싶음"}
+                        </button>
+                        <button
+                          type="button"
+                          className="place-action-btn delete-btn"
+                          onClick={() => onDeletePlace(community.id, place.id)}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function getCategoryEmoji(category: string) {
+  switch (category) {
+    case "cafe": return "☕";
+    case "restaurant": return "🍔";
+    case "bar": return "🍺";
+    case "sightseeing": return "🎡";
+    default: return "📍";
+  }
+}
+
+function getCategoryLabel(category: string) {
+  switch (category) {
+    case "cafe": return "카페";
+    case "restaurant": return "맛집";
+    case "bar": return "술집";
+    case "sightseeing": return "명소";
+    default: return "기타";
+  }
 }

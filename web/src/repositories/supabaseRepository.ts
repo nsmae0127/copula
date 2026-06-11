@@ -22,7 +22,10 @@ import type {
   PushSubscriptionPayload,
   RelationshipPair,
   Role,
-  UserProfile
+  UserProfile,
+  ExpenseItem,
+  PlaceItem,
+  BudgetConfig
 } from "../types";
 import { createId, initials } from "../utils";
 import type { AuthStateChangeEvent, CopulaRepository, OAuthProvider } from "./repository";
@@ -136,6 +139,38 @@ type NoticeRow = {
   pinned: boolean;
   created_at: string;
 };
+
+type BudgetRow = {
+  community_id: string;
+  monthly_limit: number;
+};
+
+type ExpenseRow = {
+  id: string;
+  community_id: string;
+  title: string;
+  amount: number;
+  category: string;
+  paid_by_user_id: string;
+  expense_date: string;
+  created_at: string;
+};
+
+type PlaceRow = {
+  id: string;
+  community_id: string;
+  name: string;
+  description: string | null;
+  lat: number;
+  lng: number;
+  category: "cafe" | "restaurant" | "bar" | "sightseeing" | "etc";
+  visited: boolean;
+  rating: number | null;
+  notes: string | null;
+  created_by: string;
+  created_at: string;
+};
+
 
 type NotificationRow = {
   id: string;
@@ -281,6 +316,44 @@ export function createSupabaseRepository(): CopulaRepository {
     );
   }
 
+  async function loadBudgetExtras(communityIds: string[]) {
+    try {
+      const budgets = await rows<BudgetRow>(
+        (supabase.from("community_budgets" as any) as any).select("*").in("community_id", communityIds)
+      );
+      const expenses = await rows<ExpenseRow>(
+        (supabase.from("community_expenses" as any) as any)
+          .select("*")
+          .in("community_id", communityIds)
+          .order("expense_date", { ascending: false })
+          .order("created_at", { ascending: false })
+      );
+      return { budgets, expenses, missing: false };
+    } catch (error) {
+      if (isMissingBudgetTables(error)) {
+        return { budgets: [] as BudgetRow[], expenses: [] as ExpenseRow[], missing: true };
+      }
+      throw error;
+    }
+  }
+
+  async function loadPlaceExtras(communityIds: string[]) {
+    try {
+      const places = await rows<PlaceRow>(
+        (supabase.from("community_places" as any) as any)
+          .select("*")
+          .in("community_id", communityIds)
+          .order("created_at", { ascending: false })
+      );
+      return { places, missing: false };
+    } catch (error) {
+      if (isMissingPlaceTables(error)) {
+        return { places: [] as PlaceRow[], missing: true };
+      }
+      throw error;
+    }
+  }
+
   async function loadState(): Promise<CopulaState> {
     try {
       const user = await currentUser();
@@ -319,6 +392,8 @@ export function createSupabaseRepository(): CopulaRepository {
       contentModules,
       oneSecondLogs,
       messageExtras,
+      budgetExtras,
+      placeExtras,
       notifications
     ] = await Promise.all([
       rows<CommunityMemberRow>(
@@ -375,6 +450,8 @@ export function createSupabaseRepository(): CopulaRepository {
           .order("created_at", { ascending: false })
       ),
       loadMessageExtras(communityIds),
+      loadBudgetExtras(communityIds),
+      loadPlaceExtras(communityIds),
       notificationsPromise
     ]);
 
@@ -384,7 +461,9 @@ export function createSupabaseRepository(): CopulaRepository {
       ...albumItems.map((item) => item.created_by),
       ...oneSecondLogs.map((log) => log.user_id),
       ...messageExtras.messages.map((message) => message.sender_user_id),
-      ...messageExtras.reactions.map((reaction) => reaction.user_id)
+      ...messageExtras.reactions.map((reaction) => reaction.user_id),
+      ...placeExtras.places.map((place) => place.created_by),
+      ...budgetExtras.expenses.map((expense) => expense.paid_by_user_id)
     ]);
     const mediaUrls = await createAlbumMediaUrls(albumItems);
     const videoUrls = await createOneSecondVideoUrls(oneSecondLogs);
@@ -402,6 +481,10 @@ export function createSupabaseRepository(): CopulaRepository {
     const reactionsByMessage = groupBy(messageExtras.reactions, (reaction) => reaction.message_id);
     const inviteCodeByCommunity = firstBy(inviteCodes, (inviteCode) => inviteCode.community_id);
     const relationshipExtras = await loadRelationshipExtras(communityIds);
+
+    const budgetsByCommunity = groupBy(budgetExtras.budgets, (b) => b.community_id);
+    const expensesByCommunity = groupBy(budgetExtras.expenses, (e) => e.community_id);
+    const placesByCommunity = groupBy(placeExtras.places, (p) => p.community_id);
 
     const mappedCommunities = communities.map((community) =>
       mapCommunity(community, {
@@ -426,7 +509,16 @@ export function createSupabaseRepository(): CopulaRepository {
         ),
         messages: (messagesByCommunity.get(community.id) ?? [])
           .map((message) => mapCommunityMessage(message, profiles, reactionsByMessage))
-          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
+        budget: budgetExtras.missing
+          ? undefined
+          : mapBudget(
+              budgetsByCommunity.get(community.id)?.[0],
+              expensesByCommunity.get(community.id) ?? []
+            ),
+        places: placeExtras.missing
+          ? undefined
+          : (placesByCommunity.get(community.id) ?? []).map(mapPlace)
       })
     );
     const communitiesWithRelationships = relationshipExtras
@@ -1830,6 +1922,219 @@ export function createSupabaseRepository(): CopulaRepository {
       if (error) {
         throw new Error(error.message);
       }
+    },
+
+    async addExpense(communityId, expense) {
+      const user = await currentUser();
+      if (!user) throw new Error("로그인이 필요합니다.");
+
+      try {
+        const { data, error } = await (supabase.from("community_expenses" as any) as any)
+          .insert({
+            community_id: communityId,
+            title: expense.title,
+            amount: expense.amount,
+            category: expense.category,
+            paid_by_user_id: user.id,
+            expense_date: expense.date
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        const row = data as ExpenseRow;
+        return {
+          id: row.id,
+          title: row.title,
+          amount: row.amount,
+          category: row.category as any,
+          paidByUserId: row.paid_by_user_id,
+          date: row.expense_date,
+          createdAt: row.created_at
+        };
+      } catch (error) {
+        if (isMissingBudgetTables(error)) {
+          const localBudget = { monthlyLimit: 500000, expenses: [] as ExpenseItem[] };
+          const key = `copula-budget-${communityId}`;
+          try {
+            const saved = localStorage.getItem(key);
+            if (saved) Object.assign(localBudget, JSON.parse(saved));
+          } catch {}
+          const newExpense: ExpenseItem = {
+            id: `expense-${Math.random().toString(36).substring(2, 9)}`,
+            title: expense.title,
+            amount: expense.amount,
+            category: expense.category,
+            paidByUserId: user.id,
+            date: expense.date,
+            createdAt: new Date().toISOString()
+          };
+          localBudget.expenses.unshift(newExpense);
+          localStorage.setItem(key, JSON.stringify(localBudget));
+          return newExpense;
+        }
+        throw error;
+      }
+    },
+
+    async deleteExpense(communityId, expenseId) {
+      try {
+        const { error } = await (supabase.from("community_expenses" as any) as any)
+          .delete()
+          .eq("id", expenseId);
+
+        if (error) throw error;
+      } catch (error) {
+        if (isMissingBudgetTables(error)) {
+          const localBudget = { monthlyLimit: 500000, expenses: [] as ExpenseItem[] };
+          const key = `copula-budget-${communityId}`;
+          try {
+            const saved = localStorage.getItem(key);
+            if (saved) Object.assign(localBudget, JSON.parse(saved));
+          } catch {}
+          localBudget.expenses = localBudget.expenses.filter((e) => e.id !== expenseId);
+          localStorage.setItem(key, JSON.stringify(localBudget));
+          return;
+        }
+        throw error;
+      }
+    },
+
+    async updateBudgetLimit(communityId, limit) {
+      try {
+        const { error } = await (supabase.from("community_budgets" as any) as any)
+          .upsert({
+            community_id: communityId,
+            monthly_limit: limit
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        return limit;
+      } catch (error) {
+        if (isMissingBudgetTables(error)) {
+          const localBudget = { monthlyLimit: 500000, expenses: [] as ExpenseItem[] };
+          const key = `copula-budget-${communityId}`;
+          try {
+            const saved = localStorage.getItem(key);
+            if (saved) Object.assign(localBudget, JSON.parse(saved));
+          } catch {}
+          localBudget.monthlyLimit = limit;
+          localStorage.setItem(key, JSON.stringify(localBudget));
+          return limit;
+        }
+        throw error;
+      }
+    },
+
+    async addPlace(communityId, place) {
+      const user = await currentUser();
+      if (!user) throw new Error("로그인이 필요합니다.");
+
+      try {
+        const { data, error } = await (supabase.from("community_places" as any) as any)
+          .insert({
+            community_id: communityId,
+            name: place.name,
+            description: place.description || null,
+            lat: place.lat,
+            lng: place.lng,
+            category: place.category,
+            visited: place.visited,
+            rating: place.rating || null,
+            notes: place.notes || null,
+            created_by: user.id
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        return mapPlace(data as PlaceRow);
+      } catch (error) {
+        if (isMissingPlaceTables(error)) {
+          const key = `copula-places-${communityId}`;
+          let localPlaces = [] as PlaceItem[];
+          try {
+            const saved = localStorage.getItem(key);
+            if (saved) localPlaces = JSON.parse(saved);
+          } catch {}
+          const newPlace: PlaceItem = {
+            ...place,
+            id: `place-${Math.random().toString(36).substring(2, 9)}`,
+            createdBy: user.id,
+            createdAt: new Date().toISOString()
+          };
+          localPlaces.unshift(newPlace);
+          localStorage.setItem(key, JSON.stringify(localPlaces));
+          return newPlace;
+        }
+        throw error;
+      }
+    },
+
+    async deletePlace(communityId, placeId) {
+      try {
+        const { error } = await (supabase.from("community_places" as any) as any)
+          .delete()
+          .eq("id", placeId);
+
+        if (error) throw error;
+      } catch (error) {
+        if (isMissingPlaceTables(error)) {
+          const key = `copula-places-${communityId}`;
+          let localPlaces = [] as PlaceItem[];
+          try {
+            const saved = localStorage.getItem(key);
+            if (saved) localPlaces = JSON.parse(saved);
+          } catch {}
+          localPlaces = localPlaces.filter((p) => p.id !== placeId);
+          localStorage.setItem(key, JSON.stringify(localPlaces));
+          return;
+        }
+        throw error;
+      }
+    },
+
+    async togglePlaceVisited(communityId, placeId) {
+      try {
+        const { data: current, error: getError } = await (supabase.from("community_places" as any) as any)
+          .select("visited")
+          .eq("id", placeId)
+          .single();
+        if (getError) throw getError;
+
+        const nextVisited = !current.visited;
+        const { data, error } = await (supabase.from("community_places" as any) as any)
+          .update({ visited: nextVisited })
+          .eq("id", placeId)
+          .select()
+          .single();
+
+        if (error) throw error;
+        return mapPlace(data as PlaceRow);
+      } catch (error) {
+        if (isMissingPlaceTables(error)) {
+          const key = `copula-places-${communityId}`;
+          let localPlaces = [] as PlaceItem[];
+          try {
+            const saved = localStorage.getItem(key);
+            if (saved) localPlaces = JSON.parse(saved);
+          } catch {}
+          let updatedPlace: PlaceItem | undefined;
+          localPlaces = localPlaces.map((p) => {
+            if (p.id === placeId) {
+              updatedPlace = { ...p, visited: !p.visited };
+              return updatedPlace;
+            }
+            return p;
+          });
+          localStorage.setItem(key, JSON.stringify(localPlaces));
+          if (!updatedPlace) throw new Error("장소를 찾을 수 없습니다.");
+          return updatedPlace;
+        }
+        throw error;
+      }
     }
   };
 
@@ -1972,7 +2277,7 @@ type CommunityNested = Omit<
   Community,
   "id" | "name" | "description" | "accent" | "coverUrl" | "createdAt" | "pairs" | "circles" | "commitments" | "messages"
 > &
-  Partial<Pick<Community, "pairs" | "circles" | "commitments" | "messages">>;
+  Partial<Pick<Community, "pairs" | "circles" | "commitments" | "messages" | "budget" | "places">>;
 
 function mapCommunity(
   row: CommunityRow,
@@ -1996,7 +2301,9 @@ function mapCommunity(
     circles: nested.circles ?? [],
     commitments: nested.commitments ?? [],
     messages: nested.messages ?? [],
-    oneSecondLogs: nested.oneSecondLogs
+    oneSecondLogs: nested.oneSecondLogs,
+    budget: nested.budget,
+    places: nested.places
   };
 }
 
@@ -2226,8 +2533,63 @@ function isMissingContentModuleTable(error: unknown) {
   return looksMissing && message.includes("community_content_modules");
 }
 
+function isMissingBudgetTables(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  const looksMissing =
+    message.includes("does not exist") ||
+    message.includes("Could not find the table") ||
+    message.includes("PGRST205");
+  if (!looksMissing) {
+    return false;
+  }
+  return ["community_budgets", "community_expenses"].some((tableName) => message.includes(tableName));
+}
+
+function isMissingPlaceTables(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  const looksMissing =
+    message.includes("does not exist") ||
+    message.includes("Could not find the table") ||
+    message.includes("PGRST205");
+  if (!looksMissing) {
+    return false;
+  }
+  return ["community_places"].some((tableName) => message.includes(tableName));
+}
+
+function mapBudget(budgetRow: BudgetRow | undefined, expenseRows: ExpenseRow[]): BudgetConfig {
+  return {
+    monthlyLimit: budgetRow?.monthly_limit ?? 500000,
+    expenses: expenseRows.map((row) => ({
+      id: row.id,
+      title: row.title,
+      amount: row.amount,
+      category: row.category as any,
+      paidByUserId: row.paid_by_user_id,
+      date: row.expense_date,
+      createdAt: row.created_at
+    }))
+  };
+}
+
+function mapPlace(row: PlaceRow): PlaceItem {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description || undefined,
+    lat: row.lat,
+    lng: row.lng,
+    category: row.category,
+    visited: row.visited,
+    rating: row.rating || undefined,
+    notes: row.notes || undefined,
+    createdBy: row.created_by,
+    createdAt: row.created_at
+  };
+}
+
 function normalizeStoredCommunityModules(modules: unknown): CommunityModule[] {
-  const storedModules: CommunityModule[] = ["calendar", "commitments", "relationships", "albums", "1s", "budget"];
+  const storedModules: CommunityModule[] = ["calendar", "commitments", "relationships", "albums", "1s", "budget", "places"];
   if (!Array.isArray(modules)) return [];
   const moduleSet = new Set(
     modules.filter((module): module is CommunityModule =>

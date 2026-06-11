@@ -498,9 +498,20 @@ export function createSupabaseRepository(): CopulaRepository {
         ),
         ddays: (ddaysByCommunity.get(community.id) ?? []).map(mapDDay),
         notices: (noticesByCommunity.get(community.id) ?? []).map(mapNotice),
-        contentModules: normalizeStoredCommunityModules(
-          (contentModulesByCommunity.get(community.id) ?? []).map((module) => module.module)
-        ),
+        contentModules: (() => {
+          const dbModules = (contentModulesByCommunity.get(community.id) ?? []).map((m) => m.module);
+          const fallbackKey = `copula-modules-fallback-${community.id}`;
+          try {
+            const saved = localStorage.getItem(fallbackKey);
+            if (saved) {
+              const fallbackModules = JSON.parse(saved);
+              if (Array.isArray(fallbackModules)) {
+                return normalizeStoredCommunityModules([...new Set([...dbModules, ...fallbackModules])]);
+              }
+            }
+          } catch {}
+          return normalizeStoredCommunityModules(dbModules);
+        })(),
         pairs: relationshipExtras?.get(community.id)?.pairs ?? [],
         circles: relationshipExtras?.get(community.id)?.circles ?? [],
         commitments: relationshipExtras?.get(community.id)?.commitments ?? [],
@@ -1146,6 +1157,14 @@ export function createSupabaseRepository(): CopulaRepository {
       const user = await requireUser();
       const normalizedModules = normalizeStoredCommunityModules(modules);
 
+      // Always save to local fallback key
+      try {
+        const fallbackKey = `copula-modules-fallback-${communityId}`;
+        localStorage.setItem(fallbackKey, JSON.stringify(normalizedModules));
+      } catch (e) {
+        console.warn("Failed to save modules fallback locally:", e);
+      }
+
       try {
         const { error: deleteError } = await (supabase.from("community_content_modules" as any) as any)
           .delete()
@@ -1173,7 +1192,7 @@ export function createSupabaseRepository(): CopulaRepository {
 
         return normalizeStoredCommunityModules(insertedRows.map((row) => row.module));
       } catch (error) {
-        if (isMissingContentModuleTable(error)) {
+        if (isMissingContentModuleTable(error) || isInvalidEnumError(error)) {
           return normalizedModules;
         }
 
@@ -2531,6 +2550,15 @@ function isMissingContentModuleTable(error: unknown) {
     message.includes("Could not find the table") ||
     message.includes("PGRST205");
   return looksMissing && message.includes("community_content_modules");
+}
+
+function isInvalidEnumError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    message.includes("invalid input value for enum") ||
+    message.includes("community_content_module") ||
+    message.includes("22P02")
+  );
 }
 
 function isMissingBudgetTables(error: unknown) {

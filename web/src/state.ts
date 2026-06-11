@@ -1970,17 +1970,27 @@ export function useCopulaStore() {
 
   async function setCommunityContentModules(communityId: string, modules: CommunityModule[]) {
     const normalizedModules = normalizeCommunityContentModules(modules);
-    const savedModules = repository.setCommunityContentModules
-      ? await repository.setCommunityContentModules(communityId, normalizedModules)
-      : normalizedModules;
-    const nextModules = normalizeCommunityContentModules(savedModules);
+    try {
+      const savedModules = repository.setCommunityContentModules
+        ? await repository.setCommunityContentModules(communityId, normalizedModules)
+        : normalizedModules;
+      const nextModules = normalizeCommunityContentModules(savedModules);
 
-    setState((previous) =>
-      updateCommunity(previous, communityId, (community) => ({
-        ...community,
-        contentModules: nextModules
-      }))
-    );
+      setState((previous) =>
+        updateCommunity(previous, communityId, (community) => ({
+          ...community,
+          contentModules: nextModules
+        }))
+      );
+    } catch (error) {
+      console.warn("Failed to set content modules on backend, falling back locally:", error);
+      setState((previous) =>
+        updateCommunity(previous, communityId, (community) => ({
+          ...community,
+          contentModules: normalizedModules
+        }))
+      );
+    }
   }
 
   async function addExpense(communityId: string, input: { title: string; amount: number; category: any; paidByUserId: string; date: string }) {

@@ -1,3 +1,7 @@
+-- 0. community_content_module enum 타입에 budget, places 값 추가
+alter type public.community_content_module add value if not exists 'budget';
+alter type public.community_content_module add value if not exists 'places';
+
 -- 1. 공동 가계부 및 정산 테이블 생성
 create table if not exists public.community_budgets (
   community_id uuid primary key references public.communities(id) on delete cascade,

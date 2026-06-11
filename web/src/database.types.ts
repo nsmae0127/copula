@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       album_items: {
@@ -60,48 +85,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-        ]
-      }
-      one_second_logs: {
-        Row: {
-          id: string
-          community_id: string
-          user_id: string
-          video_url: string
-          caption: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          community_id: string
-          user_id: string
-          video_url: string
-          caption?: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          community_id?: string
-          user_id?: string
-          video_url?: string
-          caption?: string
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "one_second_logs_community_id_fkey"
-            columns: ["community_id"]
-            isOneToOne: false
-            referencedRelation: "communities"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "one_second_logs_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          }
         ]
       }
       albums: {
@@ -458,6 +441,115 @@ export type Database = {
           },
         ]
       }
+      community_budgets: {
+        Row: {
+          community_id: string
+          created_at: string
+          monthly_limit: number
+          updated_at: string
+        }
+        Insert: {
+          community_id: string
+          created_at?: string
+          monthly_limit?: number
+          updated_at?: string
+        }
+        Update: {
+          community_id?: string
+          created_at?: string
+          monthly_limit?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_budgets_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: true
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_content_modules: {
+        Row: {
+          community_id: string
+          enabled_at: string
+          enabled_by: string | null
+          module: Database["public"]["Enums"]["community_content_module"]
+        }
+        Insert: {
+          community_id: string
+          enabled_at?: string
+          enabled_by?: string | null
+          module: Database["public"]["Enums"]["community_content_module"]
+        }
+        Update: {
+          community_id?: string
+          enabled_at?: string
+          enabled_by?: string | null
+          module?: Database["public"]["Enums"]["community_content_module"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_content_modules_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_content_modules_enabled_by_fkey"
+            columns: ["enabled_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_expenses: {
+        Row: {
+          amount: number
+          category: string
+          community_id: string
+          created_at: string
+          expense_date: string
+          id: string
+          paid_by_user_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          category: string
+          community_id: string
+          created_at?: string
+          expense_date?: string
+          id?: string
+          paid_by_user_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          community_id?: string
+          created_at?: string
+          expense_date?: string
+          id?: string
+          paid_by_user_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_expenses_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       community_members: {
         Row: {
           community_id: string
@@ -493,6 +585,114 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_messages: {
+        Row: {
+          body: string
+          community_id: string
+          created_at: string
+          id: string
+          sender_member_id: string
+          sender_user_id: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          community_id: string
+          created_at?: string
+          id?: string
+          sender_member_id: string
+          sender_user_id: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          community_id?: string
+          created_at?: string
+          id?: string
+          sender_member_id?: string
+          sender_user_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_messages_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_messages_sender_member_id_fkey"
+            columns: ["sender_member_id"]
+            isOneToOne: false
+            referencedRelation: "community_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_messages_sender_user_id_fkey"
+            columns: ["sender_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_places: {
+        Row: {
+          category: string
+          community_id: string
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          lat: number
+          lng: number
+          name: string
+          notes: string | null
+          rating: number | null
+          updated_at: string
+          visited: boolean
+        }
+        Insert: {
+          category: string
+          community_id: string
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          lat: number
+          lng: number
+          name: string
+          notes?: string | null
+          rating?: number | null
+          updated_at?: string
+          visited?: boolean
+        }
+        Update: {
+          category?: string
+          community_id?: string
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          lat?: number
+          lng?: number
+          name?: string
+          notes?: string | null
+          rating?: number | null
+          updated_at?: string
+          visited?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_places_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
             referencedColumns: ["id"]
           },
         ]
@@ -599,6 +799,55 @@ export type Database = {
           },
         ]
       }
+      message_reactions: {
+        Row: {
+          community_id: string
+          created_at: string
+          emoji: string
+          id: string
+          message_id: string
+          user_id: string
+        }
+        Insert: {
+          community_id: string
+          created_at?: string
+          emoji: string
+          id?: string
+          message_id: string
+          user_id: string
+        }
+        Update: {
+          community_id?: string
+          created_at?: string
+          emoji?: string
+          id?: string
+          message_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_reactions_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_reactions_message_id_community_id_fkey"
+            columns: ["message_id", "community_id"]
+            isOneToOne: false
+            referencedRelation: "community_messages"
+            referencedColumns: ["id", "community_id"]
+          },
+          {
+            foreignKeyName: "message_reactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notices: {
         Row: {
           body: string
@@ -688,6 +937,48 @@ export type Database = {
           },
           {
             foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      one_second_logs: {
+        Row: {
+          caption: string
+          community_id: string
+          created_at: string
+          id: string
+          user_id: string
+          video_url: string
+        }
+        Insert: {
+          caption?: string
+          community_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+          video_url: string
+        }
+        Update: {
+          caption?: string
+          community_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+          video_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "one_second_logs_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "one_second_logs_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -857,6 +1148,7 @@ export type Database = {
         Args: { target_community_id: string }
         Returns: Database["public"]["Enums"]["community_role"]
       }
+      date_utc: { Args: { t: string }; Returns: string }
       ensure_profile: { Args: { target_user_id: string }; Returns: undefined }
       is_community_admin: {
         Args: { target_community_id: string }
@@ -907,6 +1199,14 @@ export type Database = {
     }
     Enums: {
       album_item_kind: "photo" | "video" | "note"
+      community_content_module:
+        | "calendar"
+        | "commitments"
+        | "relationships"
+        | "albums"
+        | "1s"
+        | "budget"
+        | "places"
       community_role: "owner" | "admin" | "member"
       dday_kind: "anniversary" | "trip" | "birthday" | "event"
       notification_kind:
@@ -1042,9 +1342,21 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       album_item_kind: ["photo", "video", "note"],
+      community_content_module: [
+        "calendar",
+        "commitments",
+        "relationships",
+        "albums",
+        "1s",
+        "budget",
+        "places",
+      ],
       community_role: ["owner", "admin", "member"],
       dday_kind: ["anniversary", "trip", "birthday", "event"],
       notification_kind: [

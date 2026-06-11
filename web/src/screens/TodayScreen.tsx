@@ -33,6 +33,7 @@ export function TodayScreen({
 
     setTimeout(() => {
       onToggleCommitment(communityId, commitmentId);
+      setCompletedIds((prev) => prev.filter((id) => id !== commitmentId));
       setCelebrations((prev) => {
         const next = { ...prev };
         delete next[commitmentId];

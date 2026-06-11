@@ -2227,7 +2227,7 @@ function isMissingContentModuleTable(error: unknown) {
 }
 
 function normalizeStoredCommunityModules(modules: unknown): CommunityModule[] {
-  const storedModules: CommunityModule[] = ["calendar", "commitments", "relationships", "albums", "1s"];
+  const storedModules: CommunityModule[] = ["calendar", "commitments", "relationships", "albums", "1s", "budget"];
   if (!Array.isArray(modules)) return [];
   const moduleSet = new Set(
     modules.filter((module): module is CommunityModule =>

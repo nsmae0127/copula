@@ -3216,14 +3216,16 @@ export function BudgetModule({
   // Dutch Pay calculation (greedy bill-split)
   const memberSpentMap: Record<string, number> = {};
   community.members.forEach(m => { memberSpentMap[m.id] = 0; });
+  let activeTotalExpenses = 0;
   expenses.forEach(e => {
     if (memberSpentMap[e.paidByUserId] !== undefined) {
       memberSpentMap[e.paidByUserId] += e.amount;
+      activeTotalExpenses += e.amount;
     }
   });
 
   const memberCount = community.members.length;
-  const sharePerPerson = memberCount > 0 ? totalExpenses / memberCount : 0;
+  const sharePerPerson = memberCount > 0 ? activeTotalExpenses / memberCount : 0;
 
   const balances = community.members.map(member => ({
     id: member.id,

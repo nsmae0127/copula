@@ -810,15 +810,15 @@ export function App() {
           onOpenOneSecondUpload={() => setModal({ type: "1sUpload" })}
           onDeleteOneSecondLog={requestDeleteOneSecondLog}
           onAddExpense={async (communityId, input) => {
-            await (actions as any).addExpense?.(communityId, input);
+            await actions.addExpense(communityId, input);
             showToast("지출 내역을 추가했습니다.");
           }}
           onDeleteExpense={async (communityId, expenseId) => {
-            await (actions as any).deleteExpense?.(communityId, expenseId);
+            await actions.deleteExpense(communityId, expenseId);
             showToast("지출 내역을 삭제했습니다.");
           }}
           onUpdateBudgetLimit={async (communityId, limit) => {
-            await (actions as any).updateBudgetLimit?.(communityId, limit);
+            await actions.updateBudgetLimit(communityId, limit);
             showToast("예산 제한을 수정했습니다.");
           }}
           onAddMergedVlogToAlbum={async (communityId, dateKey, videoFile) => {

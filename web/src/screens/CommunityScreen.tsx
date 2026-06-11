@@ -1074,8 +1074,7 @@ function CommunityContentDock({
           <strong>{canManageContent ? "필요한 것만 켜기" : "관리자만 추가 가능"}</strong>
         </div>
         <div className="content-catalog-grid">
-          {OPTIONAL_CONTENT_DEFINITIONS.map((definition) => {
-            const isEnabled = enabledSet.has(definition.module);
+          {OPTIONAL_CONTENT_DEFINITIONS.filter((definition) => !enabledSet.has(definition.module)).map((definition) => {
             const optionalModule = definition.module as OptionalContentModule;
             return (
               <ContentCatalogCard
@@ -1084,14 +1083,10 @@ function CommunityContentDock({
                 label={definition.label}
                 eyebrow={definition.eyebrow}
                 description={definition.description}
-                actionLabel={pendingContentModule === optionalModule ? "추가 중" : isEnabled ? "열기" : canManageContent ? "추가" : "관리자만"}
-                active={isEnabled}
-                disabled={pendingContentModule === optionalModule || (!isEnabled && !canManageContent)}
+                actionLabel={pendingContentModule === optionalModule ? "추가 중" : canManageContent ? "추가" : "관리자만"}
+                active={false}
+                disabled={pendingContentModule === optionalModule || !canManageContent}
                 onClick={() => {
-                  if (isEnabled) {
-                    onModuleChange(definition.module);
-                    return;
-                  }
                   onAddContentModule(optionalModule);
                 }}
               />
@@ -1515,7 +1510,32 @@ function buildCopulaContentItems(community: Community): CopulaContentItem[] {
     mediaKind: "video"
   }));
 
-  return [...noticeItems, ...eventItems, ...ddayItems, ...commitmentItems, ...albumItems, ...vlogItems].sort((a, b) => {
+  const placeItems: CopulaContentItem[] = (community.places || []).map((place) => ({
+    id: `place-${place.id}`,
+    filter: "all",
+    module: "places",
+    icon: MapPin,
+    eyebrow: place.visited ? "다녀온 맛집" : "가고 싶은 맛집",
+    title: place.name,
+    meta: `${place.description ? place.description + " · " : ""}${formatContentDate(place.createdAt)}`,
+    body: place.notes || undefined,
+    at: place.createdAt,
+    priority: 45
+  }));
+
+  const expenseItems: CopulaContentItem[] = (community.budget?.expenses || []).map((expense) => ({
+    id: `expense-${expense.id}`,
+    filter: "all",
+    module: "budget",
+    icon: Wallet,
+    eyebrow: "지출 등록",
+    title: expense.title,
+    meta: `${expense.category} · ${expense.amount.toLocaleString()}원 · ${formatContentDate(expense.createdAt || expense.date)}`,
+    at: expense.createdAt || expense.date,
+    priority: 48
+  }));
+
+  return [...noticeItems, ...eventItems, ...ddayItems, ...commitmentItems, ...albumItems, ...vlogItems, ...placeItems, ...expenseItems].sort((a, b) => {
     if (a.priority !== b.priority) {
       return a.priority - b.priority;
     }
